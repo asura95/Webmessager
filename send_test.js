@@ -97,9 +97,12 @@ async function chatSchleife() {
 }
 async function ladeHistory(chatId) {
     console.log("\n--- Lade Chat-Verlauf ---");
-    const verlauf = await Message.findOne({chatId: chatId}).sort({index: 1});
+    
+    try{
+      const verlauf = await Message.find({chatId: chatId}).sort({index: 1});
 
-    verlauf.forEach((msg) => {
+      if (verlauf && Array.isArray(verlauf)){
+        verlauf.forEach((msg) => {
         const dynamicKey = secretKey + msg.senderId.toString() + msg.index;
         try {
             const bytes = CryptoJS.AES.decrypt(msg.content, dynamicKey);
@@ -108,10 +111,17 @@ async function ladeHistory(chatId) {
             if(klartext){
                 console.log(`[Historie] ${msg.name}: ${klartext}`);
             }
-        }catch(e){
-            console.log(`[Historie] ${msg.name}: (Nachricht konnte nicht entschlüsselt werden)`);
-        }
-    });
+          }catch(e){
+              console.log(`[Historie] ${msg.name}: (Nachricht konnte nicht entschlüsselt werden)`);
+          }
+        });
+      
+      }else {
+        console.log("Keine alten Nachrichten gefunden.");
+      }
+    }catch(err){
+      console.error("Fehler beim Laden des Chat-Verlaufs:", err)
+    }
     console.log("--- Ende der Historie ---\n");
 }
 function login() {
