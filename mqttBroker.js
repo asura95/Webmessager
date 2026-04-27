@@ -22,8 +22,8 @@ client.on('message', async (topic, payload) => {
         });
 
         await newMessage.save();
-        console.log(`✅ Nachricht für Chat ${data.chatId} in MongoDB gespeichert!`);
+        console.log(`Nachricht für Chat ${data.chatId} in MongoDB gespeichert!`);
     } catch (err) {
-        console.error('❌ Fehler beim Speichern:', err.message);
+        console.error('Fehler beim Speichern:', err.message);
     }
 });
