@@ -5,6 +5,9 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+const cors = require("cors");
+app.use(cors());
+
 const User = require("./modelsUser");
 const Message = require("./modelsMessage");
 const { getOrCreateChat } = require("./chatService");
