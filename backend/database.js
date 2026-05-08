@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const dbURL = 'mongodb://localhost:27017/chat_app_db';
+const dbURL = 'mongodb://127.0.0.1:27017/chat_app_db';
 
 // Wir definieren die Funktion, rufen sie hier aber nicht mehr mit () auf
 async function connectDB() {

@@ -1,29 +1,39 @@
-const mqtt = require('mqtt');
-const {connectDB } = require('./database'); // Importiert deine Datenbank-Verbindung
+const aedesLib = require('aedes');
+const aedes = (typeof aedesLib === 'function')
+    ? aedesLib()
+    : (aedesLib.Aedes ? new aedesLib.Aedes() : aedesLib.createBroker());
+const server = require('net').createServer(aedes.handle);
+const httpServer = require('http').createServer();
+const ws = require('websocket-stream');
+const { connectDB } = require('./database');
 const Message = require('./modelsMessage');
 
 connectDB();
 
-const client = mqtt.connect('mqtt://localhost:1883');
-
-client.on('connect', () => {
-    console.log('Backend ist bereit und mit dem Broker verbunden! 📡');
-    client.subscribe('chats/+/messages');
+server.listen(1883, function() {
+    console.log('MQTT Broker läuft auf Port 1883 (TCP)');
 });
 
-client.on('message', async (topic, payload) => {
-    try {
-        const data = JSON.parse(payload.toString());
-        
-        const newMessage = new Message({
-            senderId: data.senderId,
-            chatId: data.chatId,
-            content: data.content
-        });
+ws.createServer({ server: httpServer }, aedes.handle);
+httpServer.listen(9001, function(){
+    console.log('MQTT Broker läuft auf Port 9001 (WebSocket)');
+});
 
-        await newMessage.save();
-        console.log(`Nachricht für Chat ${data.chatId} in MongoDB gespeichert!`);
-    } catch (err) {
-        console.error('Fehler beim Speichern:', err.message);
+aedes.on('publish', async function (packet, client) {
+    if(packet.topic === 'chat/main') {
+        try{
+            const data = JSON.parse(packet.paylod.toString());
+
+            const newMessage = new Message ({
+                senderId: data.sender,
+                content: data.content,
+                chatId: "main_room"
+            });
+
+            await newMessage.save();
+            console.log(`Nachricht gespeichert ${data.content}`);
+        }catch (err){
+
+        }
     }
-});
+})

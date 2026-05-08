@@ -1,3 +1,4 @@
 TERMINAL    npm install express body-parser cors
             npm install bcrypt für passwörter
             npm install jsonwebtoken damit user nicht jedes Mal anmelden muss
+            npm install aedes net http websocket-stream

@@ -1,0 +1,246 @@
+:root {
+  --primary-bg: #121212;
+  --card-bg: #1e1e1e;
+  --accent: #bb86fc;
+  --text-main: #ffffff;
+  --input-bg: #2c2c2c;
+}
+
+/* Globale Basis-Einstellungen */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #121212;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+/* Container-Layout (PC-freundlich & Responsive) */
+#app {
+    width: 100%;
+    max-width: 450px; /* Handy-Größe standardmäßig */
+    height: 100vh;
+    background-color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+/* PC-Anpassung: Auf großen Bildschirmen wirkt es wie eine App im Fokus */
+@media (min-width: 768px) {
+    #app {
+        height: 85vh;
+        border-radius: 16px;
+    }
+}
+
+/* Formulare (Login & Registrierung) */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 30px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.form-container h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #fff;
+    font-size: 24px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.form-container input {
+    width: 100%;
+    padding: 14px;
+    background-color: #2a2a2a;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.form-container input:focus {
+    border-color: #a855f7;
+    background-color: #333;
+    outline: none;
+}
+
+/* Der lila Button */
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background-color: #a855f7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-top: 10px;
+}
+
+.btn-primary:hover {
+    background-color: #9333ea;
+}
+
+.btn-secondary {
+    background: none;
+    border: none;
+    color: #a0a0a0;
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: underline;
+    margin-top: 15px;
+    text-align: center;
+}
+
+.btn-secondary:hover {
+    color: #fff;
+}
+
+/* Rote Fehlermeldung unter den Feldern */
+.error-box {
+    display: none;
+    background-color: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+/* Hilfe-Text unter dem Button */
+.switch-text {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #888;
+}
+
+.switch-text span {
+    color: #a855f7;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.switch-text span:hover {
+    color: #c084fc;
+}
+body {
+  background-color: var(--primary-bg);
+  color: var(--text-main);
+  margin: 0;
+  font-family: "Segoe UI", sans-serif;
+  display: flex;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  max-width: 500px;
+  background-color: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+}
+
+#login-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 40px 20px;
+}
+
+
+
+#login-btn {
+  background-color: var(--accent);
+  color: #000;
+  border: none;
+  padding: 14px;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+#login-btn:hover {
+  filter: brightness(1.2);
+}
+
+header {
+  background-color: var(--accent);
+  color: #000;
+  padding: 15px;
+  font-weight: bold;
+}
+
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+}
+
+.input-area {
+  display: flex;
+  padding: 15px;
+  background-color: var(--primary-bg);
+  gap: 10px;
+}
+
+.input-area input{
+  flex: 1;
+}
+
+input {
+  background-color: var(--input-bg);
+  border: 1px solid #444;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.message {
+  max-width: 80%;
+  padding: 10px 15px;
+  margin: 10px;
+  border-radius: 15px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.sent {
+  background-color: var(--accent);
+  color: black;
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
+}
+
+.received {
+  background-color: #333;
+  color: white;
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
+}
