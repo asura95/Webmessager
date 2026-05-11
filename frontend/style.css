@@ -1,9 +1,12 @@
 :root {
   --primary-bg: #121212;
   --card-bg: #1e1e1e;
-  --accent: #bb86fc;
+  --accent: #a855f7;      /* Einheitliches Lila */
+  --accent-hover: #9333ea;
   --text-main: #ffffff;
-  --input-bg: #2c2c2c;
+  --text-muted: #a0aec0;
+  --input-bg: #2a2a2a;
+  --sidebar-bg: #111122;
 }
 
 /* Globale Basis-Einstellungen */
@@ -15,27 +18,29 @@
 }
 
 body {
-    background-color: #121212;
-    color: #e0e0e0;
+    background-color: var(--primary-bg);
+    color: var(--text-main);
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    overflow: hidden;
 }
 
-/* Container-Layout (PC-freundlich & Responsive) */
+/* Container-Layout (Haupt-App-Fenster) */
 #app {
     width: 100%;
-    max-width: 450px; /* Handy-Größe standardmäßig */
+    max-width: 900px; /* Erhöht, damit Platz für Sidebar + Chat auf PC ist */
     height: 100vh;
-    background-color: #1a1a1a;
+    background-color: var(--card-bg);
     display: flex;
     flex-direction: column;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     overflow: hidden;
+    transition: max-width 0.3s ease;
 }
 
-/* PC-Anpassung: Auf großen Bildschirmen wirkt es wie eine App im Fokus */
+/* PC-Anpassung: Wirkt auf großen Monitoren wie eine schwebende App */
 @media (min-width: 768px) {
     #app {
         height: 85vh;
@@ -43,14 +48,179 @@ body {
     }
 }
 
-/* Formulare (Login & Registrierung) */
+/* --- NEUES CHAT-LAYOUT (SIDEBAR + CHAT) --- */
+#chat-layout {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Seitenleiste für die Räume */
+#sidebar {
+    width: 240px;
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid #2d2d44;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#sidebar h3 {
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: bold;
+    border-bottom: 1px solid #2d2d44;
+    padding-bottom: 10px;
+}
+
+#room-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.room-item {
+    padding: 12px 15px;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.room-item:hover {
+    background-color: #24243e;
+    color: var(--text-main);
+}
+
+.room-item.active {
+    background-color: var(--accent);
+    color: white;
+    font-weight: bold;
+}
+
+/* Haupt-Chat-Container */
+#chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--card-bg);
+    height: 100%;
+}
+
+/* --- CHAT ELEMENTE --- */
+header {
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #2d2d44;
+    color: var(--text-main);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h3 {
+    font-size: 16px;
+}
+
+#logout-btn {
+    background-color: transparent;
+    color: #ef4444;
+    border: 1px solid #ef4444;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+#messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+}
+
+.message {
+    max-width: 75%;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.sent {
+    background-color: var(--accent);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+}
+
+.received {
+    background-color: #2d2d44;
+    color: var(--text-main);
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+}
+
+.input-area {
+    display: flex;
+    padding: 15px 20px;
+    background-color: #1a1a1a;
+    border-top: 1px solid #2d2d44;
+    gap: 12px;
+}
+
+.input-area input {
+    flex: 1;
+    background-color: var(--input-bg);
+    border: 1px solid #3d3d5c;
+    color: white;
+    padding: 14px;
+    border-radius: 8px;
+    outline: none;
+}
+
+.input-area input:focus {
+    border-color: var(--accent);
+}
+
+#send-btn {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    padding: 0 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#send-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+/* --- FORMULARE (LOGIN & REGISTER) --- */
 .form-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 30px;
+    padding: 40px 30px;
     height: 100%;
     overflow-y: auto;
+    max-width: 450px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 .form-container h2 {
@@ -62,13 +232,12 @@ body {
 
 .form-group {
     margin-bottom: 15px;
-    position: relative;
 }
 
 .form-container input {
     width: 100%;
     padding: 14px;
-    background-color: #2a2a2a;
+    background-color: var(--input-bg);
     border: 2px solid transparent;
     border-radius: 8px;
     color: #fff;
@@ -77,16 +246,15 @@ body {
 }
 
 .form-container input:focus {
-    border-color: #a855f7;
+    border-color: var(--accent);
     background-color: #333;
     outline: none;
 }
 
-/* Der lila Button */
 .btn-primary {
     width: 100%;
     padding: 14px;
-    background-color: #a855f7;
+    background-color: var(--accent);
     color: white;
     border: none;
     border-radius: 8px;
@@ -98,13 +266,13 @@ body {
 }
 
 .btn-primary:hover {
-    background-color: #9333ea;
+    background-color: var(--accent-hover);
 }
 
 .btn-secondary {
     background: none;
     border: none;
-    color: #a0a0a0;
+    color: var(--text-muted);
     cursor: pointer;
     font-size: 14px;
     text-decoration: underline;
@@ -116,7 +284,6 @@ body {
     color: #fff;
 }
 
-/* Rote Fehlermeldung unter den Feldern */
 .error-box {
     display: none;
     background-color: rgba(239, 68, 68, 0.15);
@@ -129,7 +296,6 @@ body {
     text-align: center;
 }
 
-/* Hilfe-Text unter dem Button */
 .switch-text {
     text-align: center;
     margin-top: 20px;
@@ -138,7 +304,7 @@ body {
 }
 
 .switch-text span {
-    color: #a855f7;
+    color: var(--accent);
     cursor: pointer;
     text-decoration: underline;
 }
@@ -146,109 +312,43 @@ body {
 .switch-text span:hover {
     color: #c084fc;
 }
-body {
-  background-color: var(--primary-bg);
-  color: var(--text-main);
-  margin: 0;
-  font-family: "Segoe UI", sans-serif;
-  display: flex;
-  justify-content: center;
-  height: 100vh;
-  overflow: hidden;
-}
 
-#app {
-  width: 100%;
-  max-width: 500px;
-  background-color: var(--card-bg);
-  display: flex;
-  flex-direction: column;
-}
+/* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
+@media (max-width: 767px) {
+    #app {
+        max-width: 100%;
+        height: 100vh;
+        border-radius: 0;
+    }
 
-#login-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding: 40px 20px;
-}
+    /* Auf Handys wollen wir die Sidebar meistens oben oder einklappbar. 
+       Hier setzen wir das Layout auf 'column' (Räume stehen schmal über dem Chat) */
+    #chat-layout {
+        flex-direction: column;
+    }
 
+    #sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid #2d2d44;
+        padding: 10px 15px;
+        gap: 5px;
+    }
 
+    #sidebar h3 {
+        display: none; /* Spart Platz auf dem Smartphone */
+    }
 
-#login-btn {
-  background-color: var(--accent);
-  color: #000;
-  border: none;
-  padding: 14px;
-  border-radius: 25px;
-  cursor: pointer;
-  transition: 0.3s;
-}
+    #room-list {
+        flex-direction: row; /* Räume nebeneinander anzeigen */
+        overflow-x: auto;   /* Scrollbar, falls es viele Räume sind */
+        padding-bottom: 5px;
+    }
 
-#login-btn:hover {
-  filter: brightness(1.2);
-}
-
-header {
-  background-color: var(--accent);
-  color: #000;
-  padding: 15px;
-  font-weight: bold;
-}
-
-#messages {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  padding: 15px;
-}
-
-.input-area {
-  display: flex;
-  padding: 15px;
-  background-color: var(--primary-bg);
-  gap: 10px;
-}
-
-.input-area input{
-  flex: 1;
-}
-
-input {
-  background-color: var(--input-bg);
-  border: 1px solid #444;
-  color: white;
-  padding: 12px;
-  border-radius: 8px;
-}
-
-.message {
-  max-width: 80%;
-  padding: 10px 15px;
-  margin: 10px;
-  border-radius: 15px;
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.sent {
-  background-color: var(--accent);
-  color: black;
-  align-self: flex-end;
-  border-bottom-right-radius: 2px;
-}
-
-.received {
-  background-color: #333;
-  color: white;
-  align-self: flex-start;
-  border-bottom-left-radius: 2px;
-}
-
-@media (max-width: 600px) {
-  .chat-container {
-    width: 100%;
-    height: 100vh;
-    border-radius: 0;
-  }
+    .room-item {
+        padding: 6px 12px;
+        font-size: 13px;
+        white-space: nowrap; /* Kein Zeilenumbruch bei Raumnamen */
+    }
 }

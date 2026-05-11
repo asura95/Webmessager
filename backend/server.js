@@ -13,6 +13,7 @@ app.use(cors());
 
 const User = require("./modelsUser");
 const Message = require("./modelsMessage");
+const Chat = require("./modelsChats")
 const { getOrCreateChat } = require("./chatService");
 
 
@@ -35,11 +36,11 @@ client.on("connect", () => {
     console.log("MQTT Broker verbunden!");
     
     // HIER ABONNIERT DAS BACKEND NUN DAS TOPIC:
-    client.subscribe("chat/main", (err) => {
+    client.subscribe("chat/rooms/+", (err) => {
         if (err) {
             console.error("❌ Fehler beim Abonnieren von chat/main:", err);
         } else {
-            console.log("📡 Backend lauscht erfolgreich auf 'chat/main' für automatische DB-Speicherung!");
+            console.log("📡 Backend lauscht erfolgreich auf 'chat/rooms/+' für automatische DB-Speicherung!");
         }
     });
 });
@@ -129,23 +130,23 @@ app.post("/api/login", async (req, res) => {
 
 
 // ECHTE MESSAGE-HISTORY AUS DER MONGO-DB LADEN
-app.get("/api/messages", authenticateToken, async (req, res) => {
+// Echte Nachrichten-Historie für einen spezifischen Raum laden
+app.get("/api/messages/:roomName", authenticateToken, async (req, res) => {
     try {
-        console.log("🔍 History-Anfrage erhalten von User:", req.user.displayName);
+        const { roomName } = req.params;
         
-        // 1. Wir holen uns denselben "main" Chatraum wie beim Speichern der Nachrichten
-        const chat = await getOrCreateChat(null, null, "main");
+        // 1. Hole oder erstelle den Chatraum anhand des Namens
+        const chat = await getOrCreateChat(null, null, roomName);
         const chatId = chat._id;
 
-        // 2. Wir suchen gezielt nach allen Nachrichten für diesen Chatraum
+        // 2. Suche Nachrichten für diesen spezifischen Raum
         const echteNachrichten = await Message.find({ chatId: chatId })
             .sort({ timestamp: 1 }) 
             .limit(100);
         
-        console.log(`✉️ Sende ${echteNachrichten.length} Nachrichten für Chatraum 'main' (${chatId}) an das Frontend zurück.`);
-        res.json(echteNachrichten);
+        res.json({ chatId: chatId, messages: echteNachrichten });
     } catch (err) {
-        console.error("❌ Fehler bei /api/messages:", err);
+        console.error(`❌ Fehler bei /api/messages/${req.params.roomName}:`, err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -174,7 +175,89 @@ app.post("/api/register", async (req, res) => {
     }
 })
 
+// =================================================================
+// 1. KONTAKTSUCHE (Nach E-Mail oder Telefonnummer)
+// =================================================================
+app.get("/api/users/search", authenticateToken, async (req, res) => {
+    try {
+        const { query } = req.query; // z.B. /api/users/search?query=test@test.de
+        if (!query) return res.status(400).json({ error: "Suchbegriff fehlt" });
 
+        // Suche nach E-Mail oder Telefonnummer (case-insensitive bei E-Mail)
+        const user = await User.findOne({
+            $and: [
+                { _id: { $ne: req.user.userId } }, // Sich selbst nicht in der Suche finden
+                {
+                    $or: [
+                        { mail: { $regex: new RegExp("^" + query + "$", "i") } },
+                        { phone: query }
+                    ]
+                }
+            ]
+        }).select("displayName mail phone _id");
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "User nicht gefunden." });
+        }
+
+        res.json({ success: true, user });
+    } catch (err) {
+        console.error("❌ Fehler bei der Nutzersuche:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// =================================================================
+// 2. PRIVATEN CHAT STARTEN ODER REAKTIVIEREN
+// =================================================================
+app.post("/api/chats/get-or-create", authenticateToken, async (req, res) => {
+    try {
+        const { partnerId } = req.body;
+        const meinId = req.user.userId;
+
+        if (!partnerId) return res.status(400).json({ error: "Partner-ID fehlt" });
+
+        // Prüfen, ob bereits ein 1-zu-1 Chat zwischen diesen beiden existiert
+        let chat = await Chat.findOne({
+            type: "private",
+            members: { $all: [meinId, partnerId], $size: 2 }
+        });
+
+        // Falls kein Chat existiert, erstellen wir einen neuen privaten Chat
+        if (!chat) {
+            chat = new Chat({
+                type: "private",
+                members: [meinId, partnerId]
+            });
+            await chat.save();
+            console.log(`🆕 Neuer privater Chat erstellt zwischen ${meinId} und ${partnerId}`);
+        }
+
+        res.json({ success: true, chatId: chat._id });
+    } catch (err) {
+        console.error("❌ Fehler beim Chat-Erstellen:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// =================================================================
+// 3. ALLE EIGENEN CHATS AUFLISTEN (Für die Chat-Liste links)
+// =================================================================
+app.get("/api/chats", authenticateToken, async (req, res) => {
+    try {
+        const meinId = req.user.userId;
+
+        // Finde alle Chats, in denen ich Mitglied bin, und lade die Userdetails der anderen Teilnehmer mit
+        const chats = await Chat.find({ members: meinId })
+            .populate("members", "displayName mail phone status")
+            .sort({ createdAt: -1 });
+
+        res.json(chats);
+    } catch (err) {
+        console.error("❌ Fehler beim Laden der Chat-Liste:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 //HISTORY ROUTEN
 
@@ -190,48 +273,42 @@ app.get("/api/history/:chatId", async(req, res) => {
 });
 // MQTT-Client lauscht auf Chat-Nachrichten und speichert sie live in MongoDB
 client.on("message", async (topic, message) => {
-    if (topic === "chat/main") {
+    // Prüfen, ob das Topic dem Muster für Chaträume entspricht
+    if (topic.startsWith("chat/rooms/")) {
         try {
+            // Extrahiere die Raum-ID/den Raumnamen aus dem Topic
+            const roomId = topic.split("/")[2]; // Liefert z.B. "main", "room1" oder eine MongoDB-ID
+            
             const data = JSON.parse(message.toString());
-            console.log("📩 MQTT-Nachricht empfangen:", data);
+            console.log(`📩 MQTT-Nachricht für Raum [${roomId}] empfangen:`, data);
 
             // 1. Absender in der DB suchen
             const absender = await User.findOne({ displayName: data.sender });
-            
-            let senderId;
-            if (absender) {
-                senderId = absender._id;
-            } else {
-                // Fallback, falls der User (z.B. bei schnellen Tests) nicht existiert
-                const irgendeinUser = await User.findOne();
-                senderId = irgendeinUser ? irgendeinUser._id : new mongoose.Types.ObjectId();
-            }
+            let senderId = absender ? absender._id : new mongoose.Types.ObjectId();
 
-            // 2. Chatraum ermitteln (Globaler Raum "main")
-            const chat = await getOrCreateChat(null, null, "main");
+            // 2. Chatraum ermitteln (Nutzt deine getOrCreateChat Funktion dynamisch!)
+            const chat = await getOrCreateChat(null, null, roomId);
             const chatId = chat._id;
 
             // 3. Fortlaufenden Index berechnen
-            const nextIndex = data.index || (await Message.countDocuments({ chatId : chatId}) + 1);
-
-            // Zeitstempel flexibel auslesen (großes oder kleines S)
+            const nextIndex = data.index || (await Message.countDocuments({ chatId: chatId }) + 1);
             const rawTime = data.timeStamp || data.timestamp || new Date().getTime();
 
             // In die MongoDB schreiben
             const neueNachricht = new Message({
                 chatId: chatId,
                 senderId: senderId,
-                sender: data.sender || "System",  // <-- WICHTIG: 'sender' hinzufügen für das Frontend!
-                name: data.sender || "System",    // Beibehalten fürs Datenbankschema
+                sender: data.sender || "System",
+                name: data.sender || "System",
                 content: data.content,
                 index: nextIndex,
                 timestamp: new Date(rawTime)
             });
 
             await neueNachricht.save();
-            console.log(`💾 Erfolgreich in DB gespeichert! Index: ${nextIndex} | Absender: ${data.sender}`);
+            console.log(`💾 Gespeichert in Raum [${roomId}] | Index: ${nextIndex}`);
         } catch (err) {
-            console.error("❌ Kritischer Fehler beim Speichern der MQTT-Nachricht in der DB:", err);
+            console.error("❌ Fehler beim Speichern der Raum-Nachricht:", err);
         }
     }
 });

@@ -7,6 +7,9 @@ let mqttClient;
 const meineClientID = "user_" + Math.floor(Math.random() * 1000000);
 
 
+let aktuellerChatId = null;
+let chatPartnerName = "";    // Wird vom Server geliefert
+
 function encryptMsg(text, senderName, index) {
     const key = GROUP_SECRET + senderName + index;  // + nicht ,
     return CryptoJS.AES.encrypt(text, key).toString();
@@ -77,30 +80,77 @@ function showRegisterScreen() {
 
 function showChatScreen(){
     appDiv.innerHTML = ` 
-        <div id="chat-container">
-            <header>
-                <h3>Mein Messenger</h3>
-                <button id="logout-btn">Abmelden</button>
-            </header>
-            <div id="messages">
+        <div id="chat-layout">
+            <aside id="sidebar">
+                <div class="sidebar-header">
+                    <h3>Meine Chats</h3>
+                    <button id="logout-btn">Abmelden</button>
                 </div>
-            <div class="input-area">
-                <input type="text" id="msg-input" placeholder="Nachricht schreiben...">
-                <button id="send-btn">Senden</button>
+                
+                <div class="search-area">
+                    <input type="text" id="contact-search-input" placeholder="E-Mail oder Tel. suchen...">
+                    <button id="contact-search-btn">🔍</button>
+                </div>
+                <div id="search-result-box" style="display: none;"></div>
+
+                <ul id="room-list">
+                    </ul>
+                
+                <button id="create-group-btn" class="btn-primary" style="padding: 8px; margin-top: auto; font-size: 13px;">
+                    + Neue Gruppe erstellen
+                </button>
+            </aside>
+
+            <div id="chat-container">
+                <header>
+                    <h3 id="current-room-title">Wähle einen Chat aus, um zu schreiben</h3>
+                </header>
+                <div id="messages"></div>
+                <div class="input-area" style="display: none;" id="chat-input-area">
+                    <input type="text" id="msg-input" placeholder="Nachricht schreiben...">
+                    <button id="send-btn">Senden</button>
+                </div>
             </div>
         </div>
     `;
 
-    connectMQTT();
-    loadMessageHistory();
-
+    // Event Listener zuweisen
     document.getElementById("logout-btn").addEventListener("click", logout);
-
-    document.getElementById("send-btn").addEventListener("click", sendMessage);
-    document.getElementById("msg-input").addEventListener("keypress", (e) => {
-        if(e.key == "Enter") sendMessage();
+    document.getElementById("contact-search-btn").addEventListener("click", sucheKontakt);
+    document.getElementById("contact-search-input").addEventListener("keypress", (e) => {
+        if(e.key === "Enter") sucheKontakt();
     });
-    
+
+    // Lade die existierenden Chats des Users beim Start
+    ladeAktiveChats();
+}
+
+async function wechsleChat(chatId, partnerName) {
+    if (mqttClient && aktuellerChatId) {
+        // Vom alten spezifischen Chat-Topic abmelden
+        mqttClient.unsubscribe(`chat/rooms/${aktuellerChatId}`);
+    }
+
+    aktuellerChatId = chatId;
+    chatPartnerName = partnerName;
+
+    // Header und Eingabebereich updaten
+    document.getElementById("current-room-title").textContent = partnerName;
+    document.getElementById("chat-input-area").style.display = "flex";
+
+    // CSS-Klassen für aktive Auswahl in der Seitenleiste anpassen
+    document.querySelectorAll(".room-item").forEach(el => {
+        el.classList.remove("active");
+        if (el.textContent === partnerName) el.classList.add("active");
+    });
+
+    // 1. History laden (per chatId!)
+    await loadMessageHistory(chatId);
+
+    // 2. MQTT-Client auf das neue dynamische Chat-Topic schalten
+    if (mqttClient) {
+        mqttClient.subscribe(`chat/rooms/${chatId}`);
+    }
 }
 
 function logout(){
@@ -117,33 +167,33 @@ function logout(){
 
 
 function connectMQTT(){
-
     if(mqttClient) mqttClient.end();
     mqttClient = mqtt.connect('ws://localhost:9001');
 
     mqttClient.on('connect', () => {
-        
         console.log("Verbunden mit dem Chat-Broker!");
-        mqttClient.subscribe('chat/main');
+        if (aktuellerChatId) {
+            mqttClient.subscribe(`chat/rooms/${aktuellerChatId}`);
+        }
     });
 
     mqttClient.on('message', (topic, message) => {
-        try{
-            const data = JSON.parse(message.toString());
-            const meinName = localStorage.getItem("messenger_username");
+        try {
+            // Empfange Nachrichten nur für den aktuell geöffneten Chat
+            if (topic === `chat/rooms/${aktuellerChatId}`) {
+                const data = JSON.parse(message.toString());
+                const meinName = localStorage.getItem("messenger_username");
 
-            if(data.sender !== meinName) {
-                const klartext = decryptMsg(data.content, data.sender, data.index);
-                displayNewMessage(`${data.sender}: ${klartext}`, 'received');
+                if(data.sender !== meinName) {
+                    const klartext = decryptMsg(data.content, data.sender, data.index);
+                    displayNewMessage(`${data.sender}: ${klartext}`, 'received');
+                }
+
+                if(data.index >= msgCounter) msgCounter = data.index + 1;
             }
-
-            if(data.index >= msgCounter) msgCounter = data.index + 1;
-
-        }catch (e){
+        } catch (e) {
             displayNewMessage("[Fehler beim Lesen]", 'received');
         }
-    
-            
     });
 }
 
@@ -152,8 +202,8 @@ function sendMessage(){
     const text = input.value.trim();
     const meinName = localStorage.getItem("messenger_username") || "Unbekannt";
     
-    if(text && mqttClient){
-
+    // Wir senden nur, wenn wir auch wirklich in einem Chat (aktuellerChatId) sind!
+    if(text && mqttClient && aktuellerChatId){
         const encrypted = encryptMsg(text, meinName, msgCounter);
 
         const payload = {
@@ -163,7 +213,8 @@ function sendMessage(){
             timeStamp: new Date().getTime()
         };
 
-        mqttClient.publish('chat/main', JSON.stringify(payload));
+        // Veröffentlichen auf dem spezifischen Chat-Topic der Datenbank-ID
+        mqttClient.publish(`chat/rooms/${aktuellerChatId}`, JSON.stringify(payload));
         displayNewMessage(text, 'sent');
         msgCounter++;
         input.value = "";
@@ -171,39 +222,33 @@ function sendMessage(){
 }
 
 // ---- NEUE LOGIN HANDLER-LOGIK ----
-async function loadMessageHistory() {
+async function loadMessageHistory(chatId) {
     const token = localStorage.getItem("messenger_token");
     const meinName = localStorage.getItem("messenger_username");
     
-    if (!token) {
-        console.warn("Kein Token für History-Laden vorhanden.");
-        return;
-    }
+    if (!token) return;
     
     try {
-        console.log("Lade Chatverlauf vom Server...");
-        const response = await fetch("http://localhost:3000/api/messages", {
+        console.log(`Lade Chatverlauf für Chat-ID [${chatId}]...`);
+        // WICHTIG: Die Route im Backend heißt bei dir /api/history/:chatId !
+        const response = await fetch(`http://localhost:3000/api/history/${chatId}`, {
             headers: { "Authorization": `Bearer ${token}` }
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP-Fehler! Status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP-Fehler!`);
         
         const history = await response.json();
-        console.log("Geladene History vom Server:", history);
 
         const msgDiv = document.getElementById("messages");
         if (msgDiv) msgDiv.innerHTML = ""; // Altes Chatfenster leeren
 
         if (!Array.isArray(history) || history.length === 0) {
-            console.log("Keine alten Nachrichten in der Datenbank gefunden.");
+            msgCounter = 1;
+            console.log("Keine alten Nachrichten für diesen Raum gefunden.");
             return;
         }
 
-        if(history.length > 0){
-            msgCounter = Math.max(...history.map(m => m.index)) + 1;
-        }
+        msgCounter = Math.max(...history.map(m => m.index)) + 1;
 
         history.forEach(msg => {
             const senderName = msg.sender || msg.name;
@@ -340,6 +385,118 @@ async function handleRegister() {
     } catch (err) {
         console.error("Registrierungsfehler:", err);
         showError(errorBox, "Server beim Registrieren nicht erreichbar!");
+    }
+}
+
+// =================================================================
+// NEUE FUNKTIONEN FÜR CHAT-AUFLISTUNG UND KONTAKTSUCHE
+// =================================================================
+
+async function ladeAktiveChats() {
+    const token = localStorage.getItem("messenger_token");
+    const meinName = localStorage.getItem("messenger_username");
+    if (!token) return;
+
+    try {
+        const response = await fetch("http://localhost:3000/api/chats", {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const chats = await response.json();
+        const listContainer = document.getElementById("room-list");
+        listContainer.innerHTML = "";
+
+        if (chats.length === 0) {
+            listContainer.innerHTML = `<li style="padding: 15px; color: #888; text-align: center; font-size: 13px;">Noch keine Chats gestartet. Nutze die Suche oben!</li>`;
+            return;
+        }
+
+        chats.forEach(chat => {
+            let chatTitel = "";
+            
+            if (chat.type === "private") {
+                // Finde das Mitglied, das NICHT ich selbst bin
+                const partner = chat.members.find(m => m.displayName !== meinName);
+                chatTitel = partner ? partner.displayName : "Unbekannter Partner";
+            } else {
+                chatTitel = `👥 ${chat.groupName || "Gruppe"}`;
+            }
+
+            const li = document.createElement("li");
+            li.className = `room-item ${chat._id === aktuellerChatId ? "active" : ""}`;
+            li.textContent = chatTitel;
+            li.onclick = () => wechsleChat(chat._id, chatTitel);
+            listContainer.appendChild(li);
+        });
+    } catch (err) {
+        console.error("Fehler beim Laden der Chat-Liste:", err);
+    }
+}
+
+async function sucheKontakt() {
+    const queryInput = document.getElementById("contact-search-input");
+    const query = queryInput.value.trim();
+    const resultBox = document.getElementById("search-result-box");
+    const token = localStorage.getItem("messenger_token");
+
+    if (!query) return;
+
+    try {
+        resultBox.style.display = "block";
+        resultBox.innerHTML = "<p style='padding: 10px; color: #aaa;'>Suche läuft...</p>";
+
+        const response = await fetch(`http://localhost:3000/api/users/search?query=${encodeURIComponent(query)}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            resultBox.innerHTML = `<p style="padding: 10px; color: #ef4444; font-size: 13px;">Kein Nutzer mit dieser E-Mail/Nummer gefunden.</p>`;
+            return;
+        }
+
+        const user = data.user;
+        resultBox.innerHTML = `
+            <div style="padding: 10px; background: #24243e; border-radius: 8px; margin-top: 5px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: #fff;">${user.displayName}</strong><br>
+                    <span style="font-size: 11px; color: #aaa;">${user.mail || user.phone}</span>
+                </div>
+                <button onclick="startePrivatenChat('${user._id}', '${user.displayName}')" 
+                        style="background: #a855f7; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                    Chatten
+                </button>
+            </div>
+        `;
+    } catch (err) {
+        resultBox.innerHTML = `<p style="padding: 10px; color: #ef4444;">Suchfehler.</p>`;
+    }
+}
+
+async function startePrivatenChat(partnerId, partnerName) {
+    const token = localStorage.getItem("messenger_token");
+    const resultBox = document.getElementById("search-result-box");
+    const queryInput = document.getElementById("contact-search-input");
+
+    try {
+        const response = await fetch("http://localhost:3000/api/chats/get-or-create", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ partnerId })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            resultBox.style.display = "none";
+            queryInput.value = "";
+
+            await ladeAktiveChats();
+            wechsleChat(data.chatId, partnerName);
+        }
+    } catch (err) {
+        console.error("Fehler beim Starten des Chats:", err);
     }
 }
 
