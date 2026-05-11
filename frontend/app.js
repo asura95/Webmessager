@@ -114,15 +114,32 @@ function showChatScreen(){
         </div>
     `;
 
-    // Event Listener zuweisen
+   // Event Listener zuweisen
     document.getElementById("logout-btn").addEventListener("click", logout);
     document.getElementById("contact-search-btn").addEventListener("click", sucheKontakt);
     document.getElementById("contact-search-input").addEventListener("keypress", (e) => {
         if(e.key === "Enter") sucheKontakt();
     });
 
+    // --- NEU: Event Listener für das Senden von Nachrichten ---
+    const sendBtn = document.getElementById("send-btn");
+    const msgInput = document.getElementById("msg-input");
+
+    if (sendBtn) {
+        sendBtn.addEventListener("click", sendMessage);
+    }
+    if (msgInput) {
+        msgInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+    }
+    // ---------------------------------------------------------
+
     // Lade die existierenden Chats des Users beim Start
     ladeAktiveChats();
+
 }
 
 async function wechsleChat(chatId, partnerName) {
@@ -290,13 +307,14 @@ async function initApp() {
                 localStorage.setItem("messenger_token", daten.token);
                 console.log("Token erfolgreich erneuert.");
                 showChatScreen();
+                connectMQTT(); // <-- NEU: Verbindet den MQTT-Client beim automatischen Login!
             } else {
                 logout();
             }
         } catch (err) {
             console.error("Server nicht erreichbar! Nutze Offline-Modus.");
-            // Wir zeigen den Chat-Screen trotzdem, falls der Server mal kurz zickt
             showChatScreen();
+            connectMQTT(); // <-- NEU: Auch im Offline/Fallback-Modus versuchen zu verbinden
         }
     } else {
         console.log("Kein Token gefunden. Zeige Login.");
@@ -340,6 +358,7 @@ async function handleLogin() {
             localStorage.setItem("messenger_username", ergebnis.user.displayName);
             
             showChatScreen();
+            connectMQTT();
         } else {
             // Zeigt den genauen Fehler (z.B. "E-Mail nicht registriert" oder "Passwort falsch")
             showError(errorBox, ergebnis.message || "Login fehlgeschlagen");

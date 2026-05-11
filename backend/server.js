@@ -261,52 +261,47 @@ app.get("/api/chats", authenticateToken, async (req, res) => {
 
 //HISTORY ROUTEN
 
-app.get("/api/history/:chatId", async(req, res) => {
+app.get("/api/history/:chatId", authenticateToken, async (req, res) => {
     const { chatId } = req.params;
-    try{
-        const verlauf = (await Message.find({chatId: chatId})).sort({ index: 1});
-
+    try {
+        // Findet alle Nachrichten zur chatId und sortiert sie aufsteigend nach dem Index
+        const verlauf = await Message.find({ chatId: chatId }).sort({ index: 1 });
         res.json(verlauf);
-    } catch (err){
-        res.status(500).json({error: err.message});
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 // MQTT-Client lauscht auf Chat-Nachrichten und speichert sie live in MongoDB
+// MQTT-Client lauscht auf Chat-Nachrichten und speichert sie live in MongoDB
 client.on("message", async (topic, message) => {
-    // Prüfen, ob das Topic dem Muster für Chaträume entspricht
     if (topic.startsWith("chat/rooms/")) {
         try {
-            // Extrahiere die Raum-ID/den Raumnamen aus dem Topic
-            const roomId = topic.split("/")[2]; // Liefert z.B. "main", "room1" oder eine MongoDB-ID
+            // Extrahiere die echte Chat-ID aus dem Topic-Pfad
+            const chatId = topic.split("/")[2]; 
             
             const data = JSON.parse(message.toString());
-            console.log(`📩 MQTT-Nachricht für Raum [${roomId}] empfangen:`, data);
+            console.log(`📩 MQTT-Nachricht für Chat-ID [${chatId}] empfangen:`, data);
 
-            // 1. Absender in der DB suchen
+            // 1. Absender in der DB suchen, um die senderId zu ermitteln
             const absender = await User.findOne({ displayName: data.sender });
             let senderId = absender ? absender._id : new mongoose.Types.ObjectId();
 
-            // 2. Chatraum ermitteln (Nutzt deine getOrCreateChat Funktion dynamisch!)
-            const chat = await getOrCreateChat(null, null, roomId);
-            const chatId = chat._id;
-
-            // 3. Fortlaufenden Index berechnen
+            // 2. Fortlaufenden Index berechnen (entweder der mitgesendete oder hochgezählt)
             const nextIndex = data.index || (await Message.countDocuments({ chatId: chatId }) + 1);
             const rawTime = data.timeStamp || data.timestamp || new Date().getTime();
 
-            // In die MongoDB schreiben
+            // 3. In die MongoDB schreiben
             const neueNachricht = new Message({
-                chatId: chatId,
+                chatId: new mongoose.Types.ObjectId(chatId), // Als echte ObjectId speichern!
                 senderId: senderId,
-                sender: data.sender || "System",
                 name: data.sender || "System",
-                content: data.content,
+                content: data.content, // Der verschlüsselte Text
                 index: nextIndex,
                 timestamp: new Date(rawTime)
             });
 
             await neueNachricht.save();
-            console.log(`💾 Gespeichert in Raum [${roomId}] | Index: ${nextIndex}`);
+            console.log(`💾 Nachricht erfolgreich gespeichert für Chat [${chatId}] | Index: ${nextIndex}`);
         } catch (err) {
             console.error("❌ Fehler beim Speichern der Raum-Nachricht:", err);
         }
