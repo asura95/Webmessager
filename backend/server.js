@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const mqtt = require("mqtt");
 const CryptoJS = require("crypto-js");
 const mongoose = require("mongoose");
@@ -16,16 +18,16 @@ const { getOrCreateChat } = require("./chatService");
 
 app.use(express.json());
 
-const jwtSecret = "mein-geheimer-ausweis-stempel-123";
+const jwtSecret = process.env.JWT_SECRET;
 const secretKey = "meim-super-sicheres-passwort-123";
-const client = mqtt.connect("mqtt://localhost:1883");
+const client = mqtt.connect(process.env.MQTT_BROKER_URL || "mqtt://localhost:1883");
 
 
 
 
 // Datenbank und MQTT VERBINDUNG
 
-mongoose.connect("mongodb://127.0.0.1:27017/chat_app_db")
+mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("MongoDB verbunden!"))
     .catch(err => console.error("DB Fehler:", err));
 
