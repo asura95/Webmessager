@@ -1,7 +1,7 @@
 const API_BASE_URL = "https://webmessager-backend.onrender.com";
 const MQTT_BROKER_URL = "wss://38252c9da2304460b2201e73eeae4fac.s1.eu.hivemq.cloud:8884/mqtt";
 
-GROUP_SECRET
+const GROUP_SECRET ="meim-super-sicheres-passwort-123";
 let msgCounter = 1;
 
 const appDiv = document.getElementById("app");
@@ -491,7 +491,7 @@ async function handleRegister() {
     mail, 
     phone, 
     password,
-    publicKey: SECRET_KEY1 + Date.now()
+    publicKey: "secretKey" + Date.now()
   };
 
   try {
