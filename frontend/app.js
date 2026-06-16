@@ -1,5 +1,5 @@
-const API_BASE_URL = "http://localhost:3000";
-const MQTT_BROKER_URL = "ws://localhost:9001";
+const API_BASE_URL = "https://webmessager-backend.onrender.com";
+const MQTT_BROKER_URL = "38252c9da2304460b2201e73eeae4fac.s1.eu.hivemq.cloud";
 
 const GROUP_SECRET = "meim-super-sicheres-passwort-123";
 let msgCounter = 1;
