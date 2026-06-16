@@ -1,317 +1,672 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const mqtt = require("mqtt");
-const CryptoJS = require("crypto-js");
 const mongoose = require("mongoose");
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const app = express();
-
 const cors = require("cors");
+
+const app = express();
+const User = require("./models/modelsUser");
+const Message = require("./models/modelsMessage");
+const Chat = require("./models/modelsChats");
+
 app.use(cors());
-
-const User = require("./modelsUser");
-const Message = require("./modelsMessage");
-const Chat = require("./modelsChats")
-const { getOrCreateChat } = require("./chatService");
-
-
 app.use(express.json());
 
+app.get('/favico.ico', (req, res) => res.status(204).end());
+
 const jwtSecret = process.env.JWT_SECRET;
-const secretKey = "meim-super-sicheres-passwort-123";
-const client = mqtt.connect(process.env.MQTT_BROKER_URL || "mqtt://localhost:1883");
+const client = mqtt.connect(
+  process.env.MQTT_BROKER_URL || "mqtt://localhost:1883",
+);
 
+// ── DB & MQTT Verbindung ─────────────────────────────────────────
 
-
-
-// Datenbank und MQTT VERBINDUNG
-
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB verbunden!"))
-    .catch(err => console.error("DB Fehler:", err));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB verbunden!"))
+  .catch((err) => console.error("❌ DB Fehler:", err));
 
 client.on("connect", () => {
-    console.log("MQTT Broker verbunden!");
-    
-    // HIER ABONNIERT DAS BACKEND NUN DAS TOPIC:
-    client.subscribe("chat/rooms/+", (err) => {
-        if (err) {
-            console.error("❌ Fehler beim Abonnieren von chat/main:", err);
-        } else {
-            console.log("📡 Backend lauscht erfolgreich auf 'chat/rooms/+' für automatische DB-Speicherung!");
-        }
-    });
+  console.log("✅ MQTT Broker verbunden!");
+  client.subscribe("chat/rooms/+", (err) => {
+    if (err) console.error("❌ MQTT Subscribe Fehler:", err);
+    else console.log("📡 Backend lauscht auf 'chat/rooms/+'");
+  });
 });
 
-
-
-// ---- API ROUTEN ----
-
-// Prüfen ob der User ein gültiges Token hat
+// ── Middleware: Token prüfen ─────────────────────────────────────
 
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+  if (!token) return res.sendStatus(401);
+  jwt.verify(token, jwtSecret, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
 
-    if(!token) return res.sendStatus(401);
-
-    jwt.verify(token, jwtSecret, (err, user) => {
-        if(err) return res.sendStatus(403);
-        req.user = user;
-        next();
-    })
-}
-
-// ROUTEN FÜR TOKEN-REFRESH
+// ── Token erneuern ───────────────────────────────────────────────
 
 app.get("/api/refresh-token", authenticateToken, (req, res) => {
-    //wenn user hier ist, war sein altes Token noch gültig
-    //wird neues ausgestellt
-    const newToken = jwt.sign(
-        { userId: req.user.userId, displayName: req.user.displayName },
-        jwtSecret,
-        {expiresIn: "7d" }
-    );
-    res.json({success: true, token: newToken});
+  const newToken = jwt.sign(
+    { userId: req.user.userId, displayName: req.user.displayName },
+    jwtSecret,
+    { expiresIn: "7d" },
+  );
+  res.json({ success: true, token: newToken });
 });
 
-//LOGIN ROUTEN
-// LOGIN ROUTE (Erweitert um genaue Fehlerprüfung)
-// LOGIN ROUTE (Präzise Fehlercodes für das Frontend)
+// ── Login ────────────────────────────────────────────────────────
+
 app.post("/api/login", async (req, res) => {
-    try {
-        const { kontakt, password } = req.body;
+  try {
+    const { kontakt, password } = req.body;
+    const suchTyp = kontakt.includes("@") ? "email" : "phone";
+    const ich =
+      suchTyp === "email"
+        ? await User.findOne({ mail: kontakt })
+        : await User.findOne({ phone: kontakt });
 
-        let ich = null;
-        let suchTyp = kontakt.includes("@") ? "email" : "phone";
-
-        if (suchTyp === "email") {
-            ich = await User.findOne({ mail: kontakt });
-        } else {
-            ich = await User.findOne({ phone: kontakt });
-        }
-
-        // 1. Kontakt existiert gar nicht
-        if (!ich) {
-            return res.status(404).json({ 
-                success: false, 
-                message: suchTyp === "email" 
-                    ? "Diese E-Mail-Adresse ist nicht registriert!" 
-                    : "Diese Telefonnummer ist nicht registriert!" 
-            });
-        }
-
-        // 2. Kontakt existiert, aber Passwort ist falsch
-        const passwordCorrect = await bcrypt.compare(password, ich.password);
-
-        if (!passwordCorrect) {
-            return res.status(401).json({ 
-                success: false, 
-                message: "Das Passwort ist falsch!" 
-            });
-        }
-
-        // 3. Login erfolgreich
-        const token = jwt.sign(
-            { userId: ich._id, displayName: ich.displayName },
-            jwtSecret,
-            { expiresIn: "7d" }
-        );
-
-        const { password: _, ...userWithoutPassword } = ich._doc;
-        res.json({ success: true, user: userWithoutPassword, token: token });
-
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    if (!ich) {
+      return res.status(404).json({
+        success: false,
+        message:
+          suchTyp === "email"
+            ? "Diese E-Mail-Adresse ist nicht registriert!"
+            : "Diese Telefonnummer ist nicht registriert!",
+      });
     }
+
+    const passwordCorrect = await bcrypt.compare(password, ich.password);
+    if (!passwordCorrect) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Das Passwort ist falsch!" });
+    }
+
+    const token = jwt.sign(
+      { userId: ich._id, displayName: ich.displayName },
+      jwtSecret,
+      { expiresIn: "7d" },
+    );
+
+    const { password: _, ...userWithoutPassword } = ich._doc;
+    res.json({ success: true, user: userWithoutPassword, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-
-// ECHTE MESSAGE-HISTORY AUS DER MONGO-DB LADEN
-// Echte Nachrichten-Historie für einen spezifischen Raum laden
-app.get("/api/messages/:roomName", authenticateToken, async (req, res) => {
-    try {
-        const { roomName } = req.params;
-        
-        // 1. Hole oder erstelle den Chatraum anhand des Namens
-        const chat = await getOrCreateChat(null, null, roomName);
-        const chatId = chat._id;
-
-        // 2. Suche Nachrichten für diesen spezifischen Raum
-        const echteNachrichten = await Message.find({ chatId: chatId })
-            .sort({ timestamp: 1 }) 
-            .limit(100);
-        
-        res.json({ chatId: chatId, messages: echteNachrichten });
-    } catch (err) {
-        console.error(`❌ Fehler bei /api/messages/${req.params.roomName}:`, err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-//ROUTEN REGISTRIEREN
+// ── Registrieren ─────────────────────────────────────────────────
 
 app.post("/api/register", async (req, res) => {
-    try {
-        const { displayName, mail, phone, password } = req.body;
+  try {
+    const { displayName, mail, phone, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({
+      displayName,
+      mail,
+      phone,
+      password: hashedPassword,
+    });
+    await newUser.save();
+    res.json({ success: true, message: "User erfolgreich registriert" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-        const saltRound = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRound);
+// ── Kontaktsuche ─────────────────────────────────────────────────
 
-        const newUser = new User ({
-            displayName,
-            mail,
-            phone,
-            password: hashedPassword,
-            publicKey: "BEISPIEL_KEY_123"
-        });
-
-        await newUser.save();
-        res.json({success: true, message: "User erfolgreich registriert"});
-    }catch (err){
-        res.status(500).json({success: false, error: err.message});
-    }
-})
-
-// =================================================================
-// 1. KONTAKTSUCHE (Nach E-Mail oder Telefonnummer)
-// =================================================================
 app.get("/api/users/search", authenticateToken, async (req, res) => {
-    try {
-        const { query } = req.query; // z.B. /api/users/search?query=test@test.de
-        if (!query) return res.status(400).json({ error: "Suchbegriff fehlt" });
+  try {
+    const { query } = req.query;
+    if (!query) return res.status(400).json({ error: "Suchbegriff fehlt" });
 
-        // Suche nach E-Mail oder Telefonnummer (case-insensitive bei E-Mail)
-        const user = await User.findOne({
-            $and: [
-                { _id: { $ne: req.user.userId } }, // Sich selbst nicht in der Suche finden
-                {
-                    $or: [
-                        { mail: { $regex: new RegExp("^" + query + "$", "i") } },
-                        { phone: query }
-                    ]
-                }
-            ]
-        }).select("displayName mail phone _id");
+    const user = await User.findOne({
+      $and: [
+        { _id: { $ne: req.user.userId } },
+        {
+          $or: [
+            { mail: { $regex: new RegExp("^" + query + "$", "i") } },
+            { phone: query },
+            { displayName: { $regex: new RegExp(query, "i") } },
+          ],
+        },
+      ],
+    }).select("displayName mail phone _id");
 
-        if (!user) {
-            return res.status(404).json({ success: false, message: "User nicht gefunden." });
-        }
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "Keinen passenden Nutzer gefunden." });
 
-        res.json({ success: true, user });
-    } catch (err) {
-        console.error("❌ Fehler bei der Nutzersuche:", err);
-        res.status(500).json({ error: err.message });
-    }
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// =================================================================
-// 2. PRIVATEN CHAT STARTEN ODER REAKTIVIEREN
-// =================================================================
+// ── Privaten Chat starten oder reaktivieren ──────────────────────
+
 app.post("/api/chats/get-or-create", authenticateToken, async (req, res) => {
-    try {
-        const { partnerId } = req.body;
-        const meinId = req.user.userId;
+  try {
+    const { partnerId } = req.body;
+    const meinId = req.user.userId;
+    if (!partnerId) return res.status(400).json({ error: "Partner-ID fehlt" });
 
-        if (!partnerId) return res.status(400).json({ error: "Partner-ID fehlt" });
+    let chat = await Chat.findOne({
+      type: "private",
+      "members.user": { $all: [meinId, partnerId] },
+    });
 
-        // Prüfen, ob bereits ein 1-zu-1 Chat zwischen diesen beiden existiert
-        let chat = await Chat.findOne({
-            type: "private",
-            members: { $all: [meinId, partnerId], $size: 2 }
-        });
+    if (!chat) {
+      chat = new Chat({
+        type: "private",
+        members: [{ user: meinId }, { user: partnerId }],
+      });
+      await chat.save();
+    } else {
+      // Falls einer den Chat gelöscht hatte: clearedAt zurücksetzen
+      const meinEintrag = chat.members.find(
+        (m) => m.user.toString() === meinId.toString(),
+      );
+      if (meinEintrag && meinEintrag.clearedAt) {
+        meinEintrag.clearedAt = null;
+        await chat.save();
+      }
+    }
 
-        // Falls kein Chat existiert, erstellen wir einen neuen privaten Chat
-        if (!chat) {
-            chat = new Chat({
-                type: "private",
-                members: [meinId, partnerId]
-            });
-            await chat.save();
-            console.log(`🆕 Neuer privater Chat erstellt zwischen ${meinId} und ${partnerId}`);
+    res.json({ success: true, chatId: chat._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Alle eigenen Chats auflisten ─────────────────────────────────
+
+app.get("/api/chats", authenticateToken, async (req, res) => {
+  try {
+    const meinId = req.user.userId;
+
+    const chats = await Chat.find({ "members.user": meinId })
+      .populate("members.user", "displayName mail phone")
+      .sort({ createdAt: -1 });
+
+    const result = await Promise.all(
+      chats.map(async (chat) => {
+        const meinEintrag = chat.members.find(
+          (m) => m.user._id.toString() === meinId.toString(),
+        );
+        if (!meinEintrag) return null;
+
+        // Wenn clearedAt gesetzt: nur anzeigen wenn neue Nachrichten DANACH existieren
+        if (meinEintrag.clearedAt) {
+          const neueNachrichten = await Message.countDocuments({
+            chatId: chat._id,
+            timestamp: { $gt: meinEintrag.clearedAt },
+          });
+          if (neueNachrichten === 0) return null;
+
+          // NEU: clearedAt und leftAt zurücksetzen damit Person wieder mitmachen kann
+          meinEintrag.clearedAt = null;
+          meinEintrag.leftAt = null;
+          await chat.save();
         }
 
-        res.json({ success: true, chatId: chat._id });
-    } catch (err) {
-        console.error("❌ Fehler beim Chat-Erstellen:", err);
-        res.status(500).json({ error: err.message });
-    }
+        return {
+          ...chat.toObject(),
+          ichBinAusgetreten: !!meinEintrag.leftAt,
+        };
+      }),
+    );
+
+    res.json(result.filter(Boolean));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// =================================================================
-// 3. ALLE EIGENEN CHATS AUFLISTEN (Für die Chat-Liste links)
-// =================================================================
-app.get("/api/chats", authenticateToken, async (req, res) => {
+// ── Gruppeninfo: Mitgliederliste mit Rollen ──────────────────────
+
+app.get("/api/chats/:chatId/members", authenticateToken, async (req, res) => {
+  try {
+    const chat = await Chat.findById(req.params.chatId).populate(
+      "members.user",
+      "displayName mail phone",
+    );
+    if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
+
+    const mitglieder = chat.members
+      .filter((m) => !m.leftAt)
+      .map((m) => ({
+        userId: m.user._id,
+        name: m.user.displayName,
+        mail: m.user.mail || null,
+        phone: m.user.phone || null,
+        role: m.role || "member",
+        mutedUntil: m.mutedUntil || null,
+      }));
+
+    res.json({ success: true, members: mitglieder });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Mitglied hinzufügen ──────────────────────────────────────────
+
+app.post(
+  "/api/chats/:chatId/members/add",
+  authenticateToken,
+  async (req, res) => {
     try {
-        const meinId = req.user.userId;
+      const { userId } = req.body;
+      const meinId = req.user.userId;
 
-        // Finde alle Chats, in denen ich Mitglied bin, und lade die Userdetails der anderen Teilnehmer mit
-        const chats = await Chat.find({ members: meinId })
-            .populate("members", "displayName mail phone status")
-            .sort({ createdAt: -1 });
+      const chat = await Chat.findById(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
 
-        res.json(chats);
+      const ichSelbst = chat.members.find(
+        (m) => m.user.toString() === meinId.toString(),
+      );
+      if (!ichSelbst) return res.status(403).json({ error: "Kein Zugriff" });
+
+      // Nur founder, admin darf Leute hinzufügen
+      if (!["founder", "admin"].includes(ichSelbst.role)) {
+        return res.status(403).json({ error: "Keine Berechtigung" });
+      }
+
+      // Bereits Mitglied?
+      const bereitsIn = chat.members.find((m) => m.user.toString() === userId);
+      if (bereitsIn && !bereitsIn.leftAt) {
+        return res
+          .status(400)
+          .json({ error: "Person ist bereits in der Gruppe" });
+      }
+
+      if (bereitsIn && bereitsIn.leftAt) {
+        // Wieder hinzufügen (leftAt + clearedAt zurücksetzen)
+        bereitsIn.leftAt = null;
+        bereitsIn.clearedAt = null;
+      } else {
+        chat.members.push({ user: userId, role: "member" });
+      }
+
+      await chat.save();
+
+      // Neues Mitglied benachrichtigen
+      const neuerUser = await User.findById(userId);
+      if (neuerUser) {
+        client.publish(
+          `chat/updates/${neuerUser.displayName}`,
+          JSON.stringify({ action: "refresh_chats" }),
+        );
+      }
+
+      res.json({ success: true });
     } catch (err) {
-        console.error("❌ Fehler beim Laden der Chat-Liste:", err);
-        res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message });
     }
-});
+  },
+);
 
-//HISTORY ROUTEN
+// ── Mitglied entfernen ───────────────────────────────────────────
+
+app.post(
+  "/api/chats/:chatId/members/remove",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { userId } = req.body;
+      const meinId = req.user.userId;
+
+      const chat = await Chat.findById(req.params.chatId).populate(
+        "members.user",
+        "displayName",
+      );
+      if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
+
+      const ichSelbst = chat.members.find(
+        (m) => m.user._id.toString() === meinId.toString(),
+      );
+      const ziel = chat.members.find((m) => m.user._id.toString() === userId);
+
+      if (!ichSelbst || !ziel)
+        return res.status(404).json({ error: "Mitglied nicht gefunden" });
+
+      // Berechtigungslogik
+      const rangOrdnung = { founder: 4, admin: 3, moderator: 2, member: 1 };
+      if (rangOrdnung[ichSelbst.role] <= rangOrdnung[ziel.role]) {
+        return res
+          .status(403)
+          .json({ error: "Keine Berechtigung, diese Person zu entfernen" });
+      }
+      // Nur founder und admin dürfen entfernen
+      if (!["founder", "admin"].includes(ichSelbst.role)) {
+        return res.status(403).json({ error: "Keine Berechtigung" });
+      }
+
+      ziel.leftAt = new Date();
+      ziel.clearedAt = new Date();
+      await chat.save();
+
+      client.publish(
+        `chat/updates/${ziel.user.displayName}`,
+        JSON.stringify({ action: "refresh_chats" }),
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// ── Rolle vergeben ───────────────────────────────────────────────
+
+app.post(
+  "/api/chats/:chatId/members/role",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { userId, newRole } = req.body;
+      const meinId = req.user.userId;
+
+      const chat = await Chat.findById(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
+
+      const ichSelbst = chat.members.find(
+        (m) => m.user.toString() === meinId.toString(),
+      );
+      const ziel = chat.members.find((m) => m.user.toString() === userId);
+
+      if (!ichSelbst || !ziel)
+        return res.status(404).json({ error: "Mitglied nicht gefunden" });
+
+      // Berechtigungsmatrix
+      // founder  → kann alles vergeben (admin, moderator, member)
+      // admin    → kann nur moderator vergeben
+      // moderator/member → nichts
+      const darfVergeben = {
+        founder: ["admin", "moderator", "member"],
+        admin: ["moderator", "member"],
+        moderator: [],
+        member: [],
+      };
+
+      if (!darfVergeben[ichSelbst.role].includes(newRole)) {
+        return res
+          .status(403)
+          .json({ error: "Keine Berechtigung für diese Rolle" });
+      }
+
+      // Founder-Rolle kann niemand vergeben oder wegnehmen (außer sich selbst)
+      if (ziel.role === "founder" || newRole === "founder") {
+        return res
+          .status(403)
+          .json({ error: "Founder-Rolle ist unveränderbar" });
+      }
+
+      ziel.role = newRole;
+      await chat.save();
+
+      res.json({ success: true, newRole });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// ── Mitglied muten ───────────────────────────────────────────────
+
+app.post(
+  "/api/chats/:chatId/members/mute",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { userId, minutes } = req.body; // minutes: 5, 15, 30, 60
+      const meinId = req.user.userId;
+
+      const chat = await Chat.findById(req.params.chatId).populate(
+        "members.user",
+        "displayName",
+      );
+      if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
+
+      const ichSelbst = chat.members.find(
+        (m) => m.user._id.toString() === meinId.toString(),
+      );
+      const ziel = chat.members.find((m) => m.user._id.toString() === userId);
+
+      if (!ichSelbst || !ziel)
+        return res.status(404).json({ error: "Mitglied nicht gefunden" });
+
+      const rangOrdnung = { founder: 4, admin: 3, moderator: 2, member: 1 };
+
+      // Nur muten wenn eigener Rang höher als Ziel
+      if (rangOrdnung[ichSelbst.role] <= rangOrdnung[ziel.role]) {
+        return res
+          .status(403)
+          .json({ error: "Keine Berechtigung, diese Person zu muten" });
+      }
+      // Moderatoren dürfen nur members muten
+      if (ichSelbst.role === "moderator" && ziel.role !== "member") {
+        return res
+          .status(403)
+          .json({ error: "Moderatoren können nur normale Mitglieder muten" });
+      }
+
+      const mutedUntil = new Date(Date.now() + minutes * 60 * 1000);
+      ziel.mutedUntil = mutedUntil;
+      await chat.save();
+
+      client.publish(
+        `chat/updates/${ziel.user.displayName}`,
+        JSON.stringify({ action: "muted", chatId: chat._id, mutedUntil }),
+      );
+
+      res.json({ success: true, mutedUntil });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+);
+
+// ── Chat-Verlauf laden ───────────────────────────────────────────
 
 app.get("/api/history/:chatId", authenticateToken, async (req, res) => {
+  try {
     const { chatId } = req.params;
-    try {
-        // Findet alle Nachrichten zur chatId und sortiert sie aufsteigend nach dem Index
-        const verlauf = await Message.find({ chatId: chatId }).sort({ index: 1 });
-        res.json(verlauf);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+    const meinId = req.user.userId;
+
+    const chat = await Chat.findById(chatId);
+    if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
+
+    const meinEintrag = chat.members.find(
+      (m) => m.user.toString() === meinId.toString(),
+    );
+
+    const filter = { chatId };
+
+    // Nur Nachrichten nach dem letzten clearedAt anzeigen
+    if (meinEintrag?.clearedAt) {
+      filter.timestamp = { $gt: meinEintrag.clearedAt };
     }
+
+    const verlauf = await Message.find(filter).sort({ index: 1 });
+    res.json(verlauf);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
-// MQTT-Client lauscht auf Chat-Nachrichten und speichert sie live in MongoDB
-// MQTT-Client lauscht auf Chat-Nachrichten und speichert sie live in MongoDB
+
+// ── Chat verlassen oder löschen ──────────────────────────────────
+
+app.delete("/api/chats/:chatId", authenticateToken, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { action } = req.query;
+    const meinId = req.user.userId;
+
+    const chat = await Chat.findById(chatId).populate(
+      "members.user",
+      "displayName",
+    );
+    if (!chat) return res.status(404).json({ error: "Chat nicht gefunden" });
+
+    const meinEintrag = chat.members.find(
+      (m) => m.user._id.toString() === meinId.toString(),
+    );
+    if (!meinEintrag) return res.status(403).json({ error: "Kein Zugriff" });
+
+    if (chat.type === "private") {
+      // Privat: Verlauf ausblenden, taucht wieder auf bei neuer Nachricht
+      meinEintrag.clearedAt = new Date();
+    } else {
+      if (action === "leave") {
+        // Verlassen: Verlauf bleibt sichtbar, keine neuen Nachrichten mehr
+        meinEintrag.leftAt = new Date();
+      } else if (action === "delete") {
+        // Löschen: Verlauf ausblenden + austreten
+        // Taucht wieder auf sobald jemand schreibt
+        meinEintrag.leftAt = meinEintrag.leftAt || new Date();
+        meinEintrag.clearedAt = new Date();
+      } else {
+        return res.status(400).json({ error: "Ungültige Aktion." });
+      }
+    }
+
+    await chat.save();
+
+    // MQTT-Signal an alle Mitglieder
+    chat.members.forEach((member) => {
+      client.publish(
+        `chat/updates/${member.user.displayName}`,
+        JSON.stringify({ action: "refresh_chats" }),
+      );
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Gruppe erstellen ─────────────────────────────────────────────
+
+app.post("/api/chats/create-group", authenticateToken, async (req, res) => {
+  try {
+    const { groupName, memberIds } = req.body;
+    const meinId = req.user.userId;
+
+    if (!groupName || !memberIds || memberIds.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Gruppenname und Mitglieder fehlen!" });
+    }
+
+    const alleIds = [...new Set([...memberIds, meinId.toString()])];
+
+    const neueGruppe = new Chat({
+      type: "group",
+      groupName: groupName,
+      adminId: meinId,
+      members: alleIds.map((id) => ({
+        user: id,
+        role: id.toString() === meinId.toString() ? "founder" : "member",
+      })),
+    });
+
+    await neueGruppe.save();
+
+    // Alle Mitglieder per MQTT benachrichtigen
+    const mitglieder = await User.find({ _id: { $in: alleIds } });
+    mitglieder.forEach((user) => {
+      client.publish(
+        `chat/updates/${user.displayName}`,
+        JSON.stringify({ action: "refresh_chats" }),
+      );
+    });
+
+    res.json({
+      success: true,
+      chatId: neueGruppe._id,
+      groupName: neueGruppe.groupName,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── MQTT: Nachrichten empfangen und in DB speichern ──────────────
+
 client.on("message", async (topic, message) => {
-    if (topic.startsWith("chat/rooms/")) {
-        try {
-            // Extrahiere die echte Chat-ID aus dem Topic-Pfad
-            const chatId = topic.split("/")[2]; 
-            
-            const data = JSON.parse(message.toString());
-            console.log(`📩 MQTT-Nachricht für Chat-ID [${chatId}] empfangen:`, data);
+  if (!topic.startsWith("chat/rooms/")) return;
 
-            // 1. Absender in der DB suchen, um die senderId zu ermitteln
-            const absender = await User.findOne({ displayName: data.sender });
-            let senderId = absender ? absender._id : new mongoose.Types.ObjectId();
+  try {
+    const chatId = topic.split("/")[2];
+    const data = JSON.parse(message.toString());
 
-            // 2. Fortlaufenden Index berechnen (entweder der mitgesendete oder hochgezählt)
-            const nextIndex = data.index || (await Message.countDocuments({ chatId: chatId }) + 1);
-            const rawTime = data.timeStamp || data.timestamp || new Date().getTime();
+    console.log(`📩 MQTT-Nachricht für Chat-ID [${chatId}] empfangen:`, data);
 
-            // 3. In die MongoDB schreiben
-            const neueNachricht = new Message({
-                chatId: new mongoose.Types.ObjectId(chatId), // Als echte ObjectId speichern!
-                senderId: senderId,
-                name: data.sender || "System",
-                content: data.content, // Der verschlüsselte Text
-                index: nextIndex,
-                timestamp: new Date(rawTime)
-            });
+    const absender = await User.findOne({ displayName: data.sender });
+    const senderId = absender ? absender._id : new mongoose.Types.ObjectId();
 
-            await neueNachricht.save();
-            console.log(`💾 Nachricht erfolgreich gespeichert für Chat [${chatId}] | Index: ${nextIndex}`);
-        } catch (err) {
-            console.error("❌ Fehler beim Speichern der Raum-Nachricht:", err);
-        }
+    // Mute-Check NACH dem Laden des Absenders
+    const chatDoc = await Chat.findById(chatId);
+    if (chatDoc && absender) {
+      const absenderEintrag = chatDoc.members.find(
+        (m) => m.user.toString() === absender._id.toString(),
+      );
+      if (
+        absenderEintrag?.mutedUntil &&
+        absenderEintrag.mutedUntil > new Date()
+      ) {
+        console.log(`🔇 ${data.sender} ist gemutet, Nachricht verworfen!`);
+        return;
+      }
     }
+
+    const nextIndex =
+      data.index || (await Message.countDocuments({ chatId })) + 1;
+    const rawTime = data.timeStamp || data.timestamp || Date.now();
+
+    const neueNachricht = new Message({
+      chatId: new mongoose.Types.ObjectId(chatId),
+      senderId,
+      name: data.sender || "System",
+      content: data.content,
+      index: nextIndex,
+      timestamp: new Date(rawTime),
+    });
+
+    await neueNachricht.save();
+
+    // ── NEU: Alle Mitglieder mit clearedAt benachrichtigen ───
+    // Damit der Chat bei ihnen wieder auftaucht
+    const chat = await Chat.findById(chatId).populate(
+      "members.user",
+      "displayName",
+    );
+    if (chat) {
+      chat.members.forEach((member) => {
+        client.publish(
+          `chat/updates/${member.user.displayName}`,
+          JSON.stringify({ action: "refresh_chats" }),
+        );
+      });
+    }
+  } catch (err) {
+    console.error("❌ Fehler beim Speichern der Nachricht:", err);
+  }
 });
 
-//SERVER STARTEN
+// ── Server starten ───────────────────────────────────────────────
 
-const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`WebMessenger Backend läuft.....`)
-})
-
+app.listen(3000, () => console.log("✅ Server läuft auf Port 3000"));

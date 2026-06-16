@@ -2,18 +2,15 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://unpkg.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com; connect-src 'self' ws://localhost:9001 http://localhost:3000;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebMessenger</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="icon" href="icons/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="icons/favicon-32x32.png" type="image/png">
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Messenger" />
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   </head>
@@ -21,8 +18,9 @@
     <div id="app"></div>
     <script>
       if ("serviceWorker" in navigator) {
+        // ./ garantiert, dass er im exakt selben Ordner wie diese index.html sucht
         navigator.serviceWorker
-          .register("/frontend/service-worker.js")
+          .register("./service-worker.js")
           .then(() => console.log("[SW] Service Worker registriert!"))
           .catch((err) => console.error("[SW] Fehler:", err));
       }
@@ -32,4 +30,3 @@
     <script src="app.js"></script>
   </body>
 </html>
-

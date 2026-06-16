@@ -1,7 +1,7 @@
 :root {
   --primary-bg: #121212;
   --card-bg: #1e1e1e;
-  --accent: #a855f7;      /* Einheitliches Lila */
+  --accent: #a855f7; /* Einheitliches Lila */
   --accent-hover: #9333ea;
   --text-main: #ffffff;
   --text-muted: #a0aec0;
@@ -11,344 +11,404 @@
 
 /* Globale Basis-Einstellungen */
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-    background-color: var(--primary-bg);
-    color: var(--text-main);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    overflow: hidden;
+  background-color: var(--primary-bg);
+  color: var(--text-main);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
 }
 
 /* Container-Layout (Haupt-App-Fenster) */
 #app {
-    width: 100%;
-    max-width: 900px; /* Erhöht, damit Platz für Sidebar + Chat auf PC ist */
-    height: 100vh;
-    background-color: var(--card-bg);
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    overflow: hidden;
-    transition: max-width 0.3s ease;
+  width: 100%;
+  max-width: 900px; /* Erhöht, damit Platz für Sidebar + Chat auf PC ist */
+  height: 100vh;
+  background-color: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  transition: max-width 0.3s ease;
 }
 
 /* PC-Anpassung: Wirkt auf großen Monitoren wie eine schwebende App */
 @media (min-width: 768px) {
-    #app {
-        height: 85vh;
-        border-radius: 16px;
-    }
+  #app {
+    height: 85vh;
+    border-radius: 16px;
+  }
 }
 
 /* --- NEUES CHAT-LAYOUT (SIDEBAR + CHAT) --- */
 #chat-layout {
-    display: flex;
-    flex: 1;
-    height: 100%;
-    overflow: hidden;
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* Seitenleiste für die Räume */
 #sidebar {
-    width: 240px;
-    background-color: var(--sidebar-bg);
-    border-right: 1px solid #2d2d44;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+  width: 240px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid #2d2d44;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 #sidebar h3 {
-    color: var(--accent);
-    font-size: 18px;
-    font-weight: bold;
-    border-bottom: 1px solid #2d2d44;
-    padding-bottom: 10px;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: bold;
+  border-bottom: 1px solid #2d2d44;
+  padding-bottom: 10px;
 }
 
 #room-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .room-item {
-    padding: 12px 15px;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 8px;
-    font-size: 15px;
-    font-weight: 500;
-    transition: all 0.2s ease;
+  padding: 12px 15px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .room-item:hover {
-    background-color: #24243e;
-    color: var(--text-main);
+  background-color: #24243e;
+  color: var(--text-main);
 }
 
 .room-item.active {
-    background-color: var(--accent);
-    color: white;
-    font-weight: bold;
+  background-color: var(--accent);
+  color: white;
+  font-weight: bold;
+}
+
+.room-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  padding-right: 65px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+/* Der Mülleimer-Button ist standardmäßig unsichtbar (opacity: 0) */
+.delete-chat-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Erst wenn man mit der Maus über das room-item fährt, erscheint der Button */
+.room-item:hover .delete-chat-btn {
+  opacity: 1;
+}
+
+/* Ein kleiner Zoom-Effekt, wenn man direkt auf den Mülleimer zeigt */
+.delete-chat-btn:hover {
+  transform: scale(1.2);
+}
+.chat-actions {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  gap: 8px; /* Abstand zwischen den Buttons */
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.room-item:hover .chat-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  padding: 2px;
+}
+
+.action-btn:hover {
+  transform: scale(1.2);
 }
 
 /* Haupt-Chat-Container */
 #chat-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--card-bg);
-    height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card-bg);
+  height: 100%;
 }
 
 /* --- CHAT ELEMENTE --- */
 header {
-    background-color: #1a1a1a;
-    border-bottom: 1px solid #2d2d44;
-    color: var(--text-main);
-    padding: 15px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  background-color: #1a1a1a;
+  border-bottom: 1px solid #2d2d44;
+  color: var(--text-main);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 header h3 {
-    font-size: 16px;
+  font-size: 16px;
 }
 
 #logout-btn {
-    background-color: transparent;
-    color: #ef4444;
-    border: 1px solid #ef4444;
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s;
+  background-color: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 #logout-btn:hover {
-    background-color: rgba(239, 68, 68, 0.1);
+  background-color: rgba(239, 68, 68, 0.1);
 }
 
 #messages {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
 }
 
 .message {
-    max-width: 75%;
-    padding: 12px 16px;
-    margin-bottom: 12px;
-    border-radius: 16px;
-    font-size: 14px;
-    line-height: 1.5;
-    word-break: break-word;
+  max-width: 75%;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .sent {
-    background-color: var(--accent);
-    color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 2px;
+  background-color: var(--accent);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
 }
 
 .received {
-    background-color: #2d2d44;
-    color: var(--text-main);
-    align-self: flex-start;
-    border-bottom-left-radius: 2px;
+  background-color: #2d2d44;
+  color: var(--text-main);
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
 }
 
 .input-area {
-    display: flex;
-    padding: 15px 20px;
-    background-color: #1a1a1a;
-    border-top: 1px solid #2d2d44;
-    gap: 12px;
+  display: flex;
+  padding: 15px 20px;
+  background-color: #1a1a1a;
+  border-top: 1px solid #2d2d44;
+  gap: 12px;
 }
 
 .input-area input {
-    flex: 1;
-    background-color: var(--input-bg);
-    border: 1px solid #3d3d5c;
-    color: white;
-    padding: 14px;
-    border-radius: 8px;
-    outline: none;
+  flex: 1;
+  background-color: var(--input-bg);
+  border: 1px solid #3d3d5c;
+  color: white;
+  padding: 14px;
+  border-radius: 8px;
+  outline: none;
 }
 
 .input-area input:focus {
-    border-color: var(--accent);
+  border-color: var(--accent);
 }
 
 #send-btn {
-    background-color: var(--accent);
-    color: white;
-    border: none;
-    padding: 0 20px;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
 #send-btn:hover {
-    background-color: var(--accent-hover);
+  background-color: var(--accent-hover);
 }
 
 /* --- FORMULARE (LOGIN & REGISTER) --- */
 .form-container {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 40px 30px;
-    height: 100%;
-    overflow-y: auto;
-    max-width: 450px;
-    margin: 0 auto;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 30px;
+  height: 100%;
+  overflow-y: auto;
+  max-width: 450px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .form-container h2 {
-    text-align: center;
-    margin-bottom: 25px;
-    color: #fff;
-    font-size: 24px;
+  text-align: center;
+  margin-bottom: 25px;
+  color: #fff;
+  font-size: 24px;
 }
 
 .form-group {
-    margin-bottom: 15px;
+  margin-bottom: 15px;
 }
 
 .form-container input {
-    width: 100%;
-    padding: 14px;
-    background-color: var(--input-bg);
-    border: 2px solid transparent;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 16px;
-    transition: all 0.3s ease;
+  width: 100%;
+  padding: 14px;
+  background-color: var(--input-bg);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+  transition: all 0.3s ease;
 }
 
 .form-container input:focus {
-    border-color: var(--accent);
-    background-color: #333;
-    outline: none;
+  border-color: var(--accent);
+  background-color: #333;
+  outline: none;
 }
 
 .btn-primary {
-    width: 100%;
-    padding: 14px;
-    background-color: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    margin-top: 10px;
+  width: 100%;
+  padding: 14px;
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 10px;
 }
 
 .btn-primary:hover {
-    background-color: var(--accent-hover);
+  background-color: var(--accent-hover);
 }
 
 .btn-secondary {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 14px;
-    text-decoration: underline;
-    margin-top: 15px;
-    text-align: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: underline;
+  margin-top: 15px;
+  text-align: center;
 }
 
 .btn-secondary:hover {
-    color: #fff;
+  color: #fff;
 }
 
 .error-box {
-    display: none;
-    background-color: rgba(239, 68, 68, 0.15);
-    border: 1px solid #ef4444;
-    color: #fca5a5;
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    margin-bottom: 15px;
-    text-align: center;
+  display: none;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 15px;
+  text-align: center;
 }
 
 .switch-text {
-    text-align: center;
-    margin-top: 20px;
-    font-size: 14px;
-    color: #888;
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #888;
 }
 
 .switch-text span {
-    color: var(--accent);
-    cursor: pointer;
-    text-decoration: underline;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .switch-text span:hover {
-    color: #c084fc;
+  color: #c084fc;
 }
 
 /* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
 @media (max-width: 767px) {
-    #app {
-        max-width: 100%;
-        height: 100vh;
-        border-radius: 0;
-    }
+  #app {
+    max-width: 100%;
+    height: 100vh;
+    border-radius: 0;
+  }
 
-    /* Auf Handys wollen wir die Sidebar meistens oben oder einklappbar. 
+  /* Auf Handys wollen wir die Sidebar meistens oben oder einklappbar. 
        Hier setzen wir das Layout auf 'column' (Räume stehen schmal über dem Chat) */
-    #chat-layout {
-        flex-direction: column;
-    }
+  #chat-layout {
+    flex-direction: column;
+  }
 
-    #sidebar {
-        width: 100%;
-        height: auto;
-        border-right: none;
-        border-bottom: 1px solid #2d2d44;
-        padding: 10px 15px;
-        gap: 5px;
-    }
+  #sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #2d2d44;
+    padding: 10px 15px;
+    gap: 5px;
+  }
 
-    #sidebar h3 {
-        display: none; /* Spart Platz auf dem Smartphone */
-    }
+  #sidebar h3 {
+    display: none; /* Spart Platz auf dem Smartphone */
+  }
 
-    #room-list {
-        flex-direction: row; /* Räume nebeneinander anzeigen */
-        overflow-x: auto;   /* Scrollbar, falls es viele Räume sind */
-        padding-bottom: 5px;
-    }
+  #room-list {
+    flex-direction: row; /* Räume nebeneinander anzeigen */
+    overflow-x: auto; /* Scrollbar, falls es viele Räume sind */
+    padding-bottom: 5px;
+  }
 
-    .room-item {
-        padding: 6px 12px;
-        font-size: 13px;
-        white-space: nowrap; /* Kein Zeilenumbruch bei Raumnamen */
-    }
+  .room-item {
+    padding: 6px 12px;
+    font-size: 13px;
+    white-space: nowrap; /* Kein Zeilenumbruch bei Raumnamen */
+  }
 }

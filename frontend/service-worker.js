@@ -1,10 +1,10 @@
 const CACHE_NAME = "webmessenger-v1";
 
 const STATIC_ASSETS = [
-  "/frontend/index.html",
-  "/frontend/app.js",
-  "/frontend/style.css",
-  "/frontend/manifest.json",
+  "index.html",
+  "app.js",
+  "style.css",
+  "manifest.json",
 ];
 
 
@@ -90,9 +90,9 @@ self.addEventListener("push", (event) => {
     const data = event.data.json();
     self.registration.showNotification(data.title || "Neue Nachricht",
         {
-                body: data.body || "Du hast eine neue Nachricht erhalten",
-    icon: "/frontend/icons/icon-192x192.png",
-    badge: "/frontend/icons/icon-72x72.png",
-    vibrate: [200, 100, 200]
-  });     
+            body: data.body || "Du hast eine neue Nachricht erhalten",
+            icon: "icons/android-chrome-192x192.png",
+            badge: "icons/favicon-32x32.png",
+            vibrate: [200, 100, 200]
+        });     
 });

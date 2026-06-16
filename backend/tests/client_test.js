@@ -9,7 +9,7 @@ const mongoose = require("mongoose");
 const secretKey = "meim-super-sicheres-passwort-123";
 const readline = require("readline");
 
-const { getOrCreateChat } = require("./chatService");
+const { getOrCreateChat } = require("../chatService");
 const { resolve } = require("dns");
 
 const aliceID = "507f1f77bcf86cd799439011";
