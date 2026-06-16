@@ -12,7 +12,11 @@ const User = require("./models/modelsUser");
 const Message = require("./models/modelsMessage");
 const Chat = require("./models/modelsChats");
 
-app.use(cors());
+app.use(cors({
+  origin: ["https://webmessenger-nine.vercel.app", "http://localhost:3000"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 app.use(express.json());
 
 app.get('/favico.ico', (req, res) => res.status(204).end());
