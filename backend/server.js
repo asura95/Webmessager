@@ -110,7 +110,7 @@ app.post("/api/login", async (req, res) => {
 
 app.post("/api/register", async (req, res) => {
   try {
-    const { displayName, mail, phone, password } = req.body;
+    const { displayName, mail, phone, password, publicKey } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({
       displayName,
