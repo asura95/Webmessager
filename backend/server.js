@@ -117,6 +117,7 @@ app.post("/api/register", async (req, res) => {
       mail,
       phone,
       password: hashedPassword,
+      publicKey,
     });
     await newUser.save();
     res.json({ success: true, message: "User erfolgreich registriert" });
