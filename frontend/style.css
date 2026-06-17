@@ -24,20 +24,21 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  min-height: 100dvh; /* Nutzt die dynamische Höhe moderner Handys */
   overflow: hidden;
 }
 
-/* Container-Layout (Haupt-App-Fenster) */
 #app {
   width: 100%;
-  max-width: 900px; /* Erhöht, damit Platz für Sidebar + Chat auf PC ist */
+  max-width: 900px;
   height: 100vh;
+  height: 100dvh; /* Nutzt die dynamische Höhe moderner Handys */
   background-color: var(--card-bg);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
   overflow: hidden;
-  transition: max-width 0.3s ease;
 }
 
 /* PC-Anpassung: Wirkt auf großen Monitoren wie eine schwebende App */
@@ -174,7 +175,7 @@ body {
 
 /* --- CHAT ELEMENTE --- */
 header {
-  background-color: #1a1a1a;
+  background-color: #1a1a1a; 
   border-bottom: 1px solid #2d2d44;
   color: var(--text-main);
   padding: 15px 20px;
@@ -374,41 +375,71 @@ header h3 {
 }
 
 /* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
+/* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
 @media (max-width: 767px) {
   #app {
     max-width: 100%;
     height: 100vh;
+    height: 100dvh; /* Verhindert, dass die Tastatur das Layout zerschießt */
     border-radius: 0;
   }
 
-  /* Auf Handys wollen wir die Sidebar meistens oben oder einklappbar. 
-       Hier setzen wir das Layout auf 'column' (Räume stehen schmal über dem Chat) */
   #chat-layout {
     flex-direction: column;
+    height: 100%;
   }
 
   #sidebar {
     width: 100%;
     height: auto;
+    flex-shrink: 0; /* Verhindert, dass die Sidebar auf 0px zusammengequetscht wird */
     border-right: none;
     border-bottom: 1px solid #2d2d44;
     padding: 10px 15px;
     gap: 5px;
   }
 
-  #sidebar h3 {
-    display: none; /* Spart Platz auf dem Smartphone */
+  #chat-container {
+    height: auto; /* WICHTIG: Hebt das feste height: 100% vom PC auf */
+    flex: 1;      /* Lässt den Chat-Bereich sauber den restlichen Platz ausfüllen */
+    min-height: 0; /* Verhindert Overflow-Fehler in Flexbox */
   }
 
   #room-list {
-    flex-direction: row; /* Räume nebeneinander anzeigen */
-    overflow-x: auto; /* Scrollbar, falls es viele Räume sind */
-    padding-bottom: 5px;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 5px 0;
+    gap: 10px;
+    -webkit-overflow-scrolling: touch; /* Sanftes Scrollen auf iOS */
   }
 
   .room-item {
-    padding: 6px 12px;
-    font-size: 13px;
-    white-space: nowrap; /* Kein Zeilenumbruch bei Raumnamen */
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+
+  /* Verstecke Raum-Erstellungstext auf Mobilgeräten für mehr Platz */
+  #sidebar h3, 
+  #sidebar button[onclick*="zeigeRaumErstellenModal"] {
+    display: none !important;
+  }
+
+  /* --- ANTI-ZOOM BUGFIX FÜR SMARTPHONES --- */
+  /* Erzwingt 16px Schriftgröße bei Fokus, damit iPhones nicht heranzoomen */
+  /* und dadurch den Abmelden-Button nach oben aus dem Bildschirm schieben! */
+  .input-area input, 
+  .login-screen input,
+  .modal-content input,
+  #message-input {
+    font-size: 16px !important;
+  }
+
+  /* --- TOUCH-BEDIENUNG FIX --- */
+  /* Da es auf Handys kein 'Hover' (Mauszeiger drüberhalten) gibt, */
+  /* machen wir Lösch-Buttons und Chat-Aktionen mobil dauerhaft sichtbar. */
+  .chat-actions, 
+  .delete-chat-btn {
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 }
