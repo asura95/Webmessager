@@ -241,7 +241,10 @@ function logout() {
 
 function connectMQTT() {
   if (mqttClient) mqttClient.end();
-  mqttClient = mqtt.connect(MQTT_BROKER_URL);
+  mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+    username: "webmessenger-frontend",
+    password: "Webmessenger1"
+  });
 
   const meinName = localStorage.getItem("messenger_username");
 
@@ -258,6 +261,10 @@ function connectMQTT() {
       mqttClient.subscribe(`chat/updates/${meinName}`);
       console.log(`Lausche auf Update-Signale für: chat/updates/${meinName}`);
     }
+  });
+
+  mqttClient.on("error", (err) => {
+    console.error("MQTT Verbindungsfehler: ", err);
   });
 
   mqttClient.on("message", (topic, message) => {
