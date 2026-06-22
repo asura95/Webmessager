@@ -100,14 +100,14 @@ function showChatScreen() {
                 <div id="search-result-box" style="display: none;"></div>
 
                 <ul id="room-list">
-                    </ul>
+                </ul>
                 
                 <button id="create-group-btn" class="btn-primary" style="padding: 8px; margin-top: auto; font-size: 13px;">
                     + Neue Gruppe erstellen
                 </button>
             </aside>
 
-              
+            <div id="chat-container">
                 <header>
                     <h3 id="current-room-title">Wähle einen Chat aus, um zu schreiben</h3>
                     <div id="chat-header-actions" class="current-chat-options" style="display:none;">
@@ -121,25 +121,21 @@ function showChatScreen() {
                     <input type="text" id="msg-input" placeholder="Nachricht schreiben...">
                     <button id="send-btn">Senden</button>
                 </div>
+            </div>
         </div>
     `;
 
   // Event Listener zuweisen
   document.getElementById("logout-btn").addEventListener("click", logout);
-  document
-    .getElementById("contact-search-btn")
-    .addEventListener("click", sucheKontakt);
-  document
-    .getElementById("contact-search-input")
-    .addEventListener("keypress", (e) => {
+  document.getElementById("contact-search-btn").addEventListener("click", sucheKontakt);
+  document.getElementById("contact-search-input").addEventListener("keypress", (e) => {
       if (e.key === "Enter") sucheKontakt();
-    });
-
-  // --- NEU: Event Listener für das Senden von Nachrichten ---
+  });
 
   const sendBtn = document.getElementById("send-btn");
   const msgInput = document.getElementById("msg-input");
   const createGroupBtn = document.getElementById("create-group-btn");
+  
   if (sendBtn) {
     sendBtn.addEventListener("click", sendMessage);
   }
@@ -150,11 +146,9 @@ function showChatScreen() {
       }
     });
   }
-  // ---------------------------------------------------------
   if (createGroupBtn) {
     createGroupBtn.addEventListener("click", zeigeGruppenModal);
   }
-  // Lade die existierenden Chats des Users beim Start
 
   ladeAktiveChats();
 }
