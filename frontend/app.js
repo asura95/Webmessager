@@ -107,7 +107,7 @@ function showChatScreen() {
                 </button>
             </aside>
 
-                // In der Funktion showChatScreen()
+              
                 <header>
                     <h3 id="current-room-title">Wähle einen Chat aus, um zu schreiben</h3>
                     <div id="chat-header-actions" class="current-chat-options" style="display:none;">
