@@ -374,9 +374,135 @@ header h3 {
   color: #c084fc;
 }
 
+.member-list {
+  max-height: 250px;
+  overflow-y: auto;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 5px;
+  margin-top: 10px;
+}
+
+/* Einzelner Eintrag in der Mitgliederliste */
+.member-item {
+  display: flex;
+  flex-direction: column; /* Buttons unter den Namen, falls es eng wird */
+  padding: 12px;
+  background-color: #24243e; /* Passend zum dunklen Theme */
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.member-item:hover {
+  background-color: #2d2d4f;
+}
+
+.member-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px; /* Abstand zu den Action-Buttons */
+  font-weight: 500;
+}
+
+/* Die kleine Rolle (Admin/Member) neben dem Namen */
+.role-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #3d3d5c;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-badge.admin {
+  background-color: rgba(168, 85, 247, 0.2);
+  color: var(--accent);
+}
+
+/* Container für die Aktions-Buttons (Rolle ändern, Kicken etc.) */
+.member-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap; /* Bricht um, falls zu wenig Platz */
+}
+
+/* Styling für die kleinen Aktions-Buttons im Popup (früher Inline-Styles) */
+.btn-small-action {
+  background-color: #3d3d5c;
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-small-action:hover {
+  background-color: #4b4b72;
+}
+
+.btn-small-action.danger {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.btn-small-action.danger:hover {
+  background-color: rgba(239, 68, 68, 0.4);
+}
+
+
+/* --- CHAT-HEADER (OBEN RECHTS) & MÜLLEIMER-LOGIK --- */
+
+/* Standardmäßig sind die Chat-Optionen oben rechts sichtbar (Info, Mülleimer) */
+.current-chat-options {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.header-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+}
+
+.header-action-btn:hover {
+  color: var(--text-main);
+}
+
+.header-action-btn.delete-chat:hover {
+  color: #ef4444; /* Rot beim Drüberfahren (Mülleimer) */
+}
+
 
 /* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
 @media (max-width: 767px) {
+
+  /* Verstecke den Mülleimer in der Kontakt-/Gruppenliste an der Seite! */
+  #room-list .delete-chat-btn {
+    display: none !important;
+  }
+  
+  /* Stelle sicher, dass die Optionen oben im offenen Chat sauber nebeneinander stehen */
+  .current-chat-options {
+    gap: 12px !important;
+  }
+  
   #app {
     max-width: 100%;
     height: 100vh;

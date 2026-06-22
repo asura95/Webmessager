@@ -108,13 +108,13 @@ function showChatScreen() {
             </aside>
 
             <div id="chat-container">
+                // In der Funktion showChatScreen()
                 <header>
                     <h3 id="current-room-title">Wähle einen Chat aus, um zu schreiben</h3>
-                    <div id="chat-header-actions" style="display:none; gap:8px;">
-                        <button id="header-info-btn" title="Gruppeninfo" 
-                                style="background:transparent;border:none;color:#a855f7;font-size:20px;cursor:pointer;">ℹ️</button>
-                        <button id="header-leave-btn" title="Gruppe verlassen"
-                                style="background:transparent;border:none;color:#a0aec0;font-size:20px;cursor:pointer;">🚪</button>
+                    <div id="chat-header-actions" class="current-chat-options" style="display:none;">
+                        <button id="header-info-btn" class="header-action-btn" title="Gruppeninfo">ℹ️</button>
+                        <button id="header-leave-btn" class="header-action-btn" title="Gruppe verlassen">🚪</button>
+                        <button id="header-delete-btn" class="header-action-btn delete-chat" title="Chat löschen">🗑️</button>
                     </div>
                 </header>
                 <div id="messages"></div>
@@ -204,26 +204,36 @@ async function wechsleChat(chatId, partnerName, ichBinAusgetreten = false) {
   const headerInfoBtn = document.getElementById("header-info-btn");
   const headerLeaveBtn = document.getElementById("header-leave-btn");
 
-  if (headerActions) {
-    // Nur bei Gruppenchats anzeigen — bei privaten Chats ausblenden
-    const isGroup = partnerName.startsWith("👥");
-    headerActions.style.display = isGroup ? "flex" : "none";
+  const headerActions = document.getElementById("chat-header-actions");
+  const headerInfoBtn = document.getElementById("header-info-btn");
+  const headerLeaveBtn = document.getElementById("header-leave-btn");
+  const headerDeleteBtn = document.getElementById("header-delete-btn"); // NEU
 
-    if(isGroup){
+  if (headerActions) {
+    headerActions.style.display = "flex"; // Jetzt für Gruppen UND private Chats anzeigen (wegen dem Mülleimer)
+    const isGroup = partnerName.startsWith("👥");
+
+    // Info & Verlassen-Icon nur bei Gruppen einblenden
+    if (headerInfoBtn) headerInfoBtn.style.display = isGroup ? "flex" : "none";
+    if (headerLeaveBtn) headerLeaveBtn.style.display = isGroup && !ichBinAusgetreten ? "flex" : "none";
+
+    // 1. Aktionen für GRUPPEN
+    if (isGroup) {
       if (headerInfoBtn) {
-        headerInfoBtn.onclick = () =>
-          zeigeGruppenInfo(
-            chatId,
-            partnerName.replace("👥 ", "").replace(" (Ausgetreten)", ""),
-          );
-        }
+        headerInfoBtn.onclick = () => zeigeGruppenInfo(chatId, partnerName.replace("👥 ", "").replace(" (Ausgetreten)", ""));
+      }
       if (headerLeaveBtn) {
-        headerLeaveBtn.onclick = () =>
-          gruppenAktion(chatId, partnerName.replace("👥 ", ""), "leave");
-        }
-    }else{
-      if(headerInfoBtn) headerInfoBtn.onclick = null;
-      if(headerLeaveBtn) headerLeaveBtn.onclick = null;
+        headerLeaveBtn.onclick = () => gruppenAktion(chatId, partnerName.replace("👥 ", ""), "leave");
+      }
+      if (headerDeleteBtn) {
+        headerDeleteBtn.onclick = () => gruppenAktion(chatId, partnerName.replace("👥 ", ""), "delete");
+      }
+    } 
+    // 2. Aktionen für PRIVAT-CHATS
+    else {
+      if (headerDeleteBtn) {
+        headerDeleteBtn.onclick = () => loeschePrivatChat(chatId, partnerName);
+      }
     }
   }
 }
@@ -1055,75 +1065,63 @@ async function zeigeGruppenInfo(chatId, groupName) {
       const gemutet = m.mutedUntil && new Date(m.mutedUntil) > new Date();
       let aktionen = "";
 
-    if (kannVerwalten) {
-      // Rolle ändern
-      if (meineRolle === "founder") {
-        aktionen += `
-          <select onchange="aendereRolle('${chatId}','${m.userId}',this.value)"
-                  style="background:#1f1f38;color:white;border:1px solid #444;border-radius:4px;padding:2px;font-size:11px;margin-right:4px;">
-            <option value="">Rolle...</option>
-            <option value="admin"     ${m.role==="admin"?"selected":""}>Admin</option>
-            <option value="moderator" ${m.role==="moderator"?"selected":""}>Moderator</option>
-            <option value="member"    ${m.role==="member"?"selected":""}>Mitglied</option>
-          </select>`;
-      } else if (meineRolle === "admin") {
-        aktionen += `
-          <select onchange="aendereRolle('${chatId}','${m.userId}',this.value)"
-                  style="background:#1f1f38;color:white;border:1px solid #444;border-radius:4px;padding:2px;font-size:11px;margin-right:4px;">
-            <option value="">Rolle...</option>
-            <option value="moderator" ${m.role==="moderator"?"selected":""}>Moderator</option>
-            <option value="member"    ${m.role==="member"?"selected":""}>Mitglied</option>
-          </select>`;
+      if (kannVerwalten) {
+        // Rolle ändern (Dropdowns ohne Inline-Styles, nutzen jetzt .btn-small-action)
+        if (meineRolle === "founder" || meineRolle === "admin") {
+          aktionen += `
+            <select onchange="aendereRolle('${chatId}','${m.userId}',this.value)" class="btn-small-action">
+              <option value="">Rolle...</option>
+              ${meineRolle === "founder" ? `<option value="admin" ${m.role==="admin"?"selected":""}>Admin</option>` : ""}
+              <option value="moderator" ${m.role==="moderator"?"selected":""}>Moderator</option>
+              <option value="member"    ${m.role==="member"?"selected":""}>Mitglied</option>
+            </select>`;
+        }
+
+        // Muten
+        if (!gemutet) {
+          aktionen += `
+            <select onchange="muteMitglied('${chatId}','${m.userId}',this.value)" class="btn-small-action">
+              <option value="">Muten...</option>
+              <option value="5">5 Min</option>
+              <option value="15">15 Min</option>
+              <option value="30">30 Min</option>
+              <option value="60">1 Std</option>
+            </select>`;
+        } else {
+          const bis = new Date(m.mutedUntil).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
+          aktionen += `<span style="font-size:11px;color:#ef4444;">🔇 bis ${bis}</span>`;
+        }
+
+        // Kicken
+        if (["founder","admin"].includes(meineRolle)) {
+          aktionen += `
+            <button onclick="entferneMitgliedAusGruppe('${chatId}','${m.userId}')" class="btn-small-action danger">
+              Kick
+            </button>`;
+        }
       }
 
-      if (!gemutet) {
-        aktionen += `
-          <select onchange="muteMitglied('${chatId}','${m.userId}',this.value)"
-                  style="background:#1f1f38;color:white;border:1px solid #444;border-radius:4px;padding:2px;font-size:11px;margin-right:4px;">
-            <option value="">Muten...</option>
-            <option value="5">5 Min</option>
-            <option value="15">15 Min</option>
-            <option value="30">30 Min</option>
-            <option value="60">1 Std</option>
-          </select>`;
-      } else {
-        const bis = new Date(m.mutedUntil).toLocaleTimeString("de-DE", {hour:"2-digit", minute:"2-digit"});
-        aktionen += `<span style="font-size:11px;color:#ef4444;margin-right:4px;">🔇 bis ${bis}</span>`;
-      }
-
-      if (["founder","admin"].includes(meineRolle)) {
-        aktionen += `
-          <button onclick="entferneMitgliedAusGruppe('${chatId}','${m.userId}')"
-                  style="background:#ef4444;border:none;color:white;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;">
-            Kick
-          </button>`;
-      }
-    }
-
-    // Kontakt hinzufügen Button (für alle sichtbar, außer für sich selbst)
-    const kontaktBtn = !istIch ? `
-      <button onclick="fuegeZuKontaktenHinzu('${m.userId}', '${m.name}')"
-              title="Zu Kontakten hinzufügen"
-              style="background:transparent;border:none;color:#a0aec0;font-size:14px;cursor:pointer;padding:2px 4px;"
-              >➕</button>` : "";
+      // Kontakt hinzufügen Button (für alle sichtbar, außer für sich selbst)
+      const kontaktBtn = !istIch ? `
+        <button onclick="fuegeZuKontaktenHinzu('${m.userId}', '${m.name}')" title="Zu Kontakten hinzufügen" style="background:transparent;border:none;color:#a0aec0;font-size:14px;cursor:pointer;">➕</button>` : "";
 
       const nameAnzeige = istIch ? `<strong>${m.name} (Du)</strong>` : m.name;
-    const kontaktInfo = m.phone ? `<span style="font-size:11px;color:#6b7280;">${m.phone}</span>` : 
-                        m.mail  ? `<span style="font-size:11px;color:#6b7280;">${m.mail}</span>` : "";
-    return `
-      <li style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a4a;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div>
+      const kontaktInfo = m.phone ? `<span style="font-size:11px;color:#6b7280;display:block;">${m.phone}</span>` : 
+                          m.mail  ? `<span style="font-size:11px;color:#6b7280;display:block;">${m.mail}</span>` : "";
+
+      // HIER KOMMT DAS NEUE HTML FÜR JEDEN NUTZER ZURÜCK
+      return `
+        <li class="member-item">
+          <div class="member-info">
             <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:13px;">${nameAnzeige}</span>
-              ${roleBadge(m.role)}
+              <span>${nameAnzeige}</span>
+              ${m.role !== 'member' ? `<span class="role-badge ${m.role === 'admin' || m.role === 'founder' ? 'admin' : ''}">${m.role}</span>` : ''}
               ${kontaktBtn}
             </div>
             ${kontaktInfo}
           </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">${aktionen}</div>
-      </li>`;
+          <div class="member-actions">${aktionen}</div>
+        </li>`;
     })
     .join("");
 
@@ -1143,15 +1141,13 @@ async function zeigeGruppenInfo(chatId, groupName) {
     : "";
 
   modal.innerHTML = `
-    <div style="background:#1f1f38;padding:25px;border-radius:12px;width:90%;max-width:500px;
-                box-shadow:0 4px 20px rgba(0,0,0,0.5);max-height:80vh;overflow-y:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+    <div class="modal-content" style="max-height:80vh;">
+      <div class="modal-header">
         <h3 style="margin:0;">👥 ${groupName}</h3>
-        <button onclick="document.getElementById('group-info-modal').remove()"
-                style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;">✕</button>
+        <button onclick="document.getElementById('group-info-modal').remove()" class="close-modal-btn">✕</button>
       </div>
-      <p style="font-size:12px;color:#aaa;margin:0 0 10px;">${members.length} Mitglieder</p>
-      <ul style="list-style:none;padding:0;margin:0;">${memberRows}</ul>
+      <p style="font-size:12px;color:#aaa;margin:0;">${members.length} Mitglieder</p>
+      <ul class="member-list">${memberRows}</ul>
       ${hinzufuegenSection}
     </div>`;
 
