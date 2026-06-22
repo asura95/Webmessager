@@ -107,7 +107,6 @@ function showChatScreen() {
                 </button>
             </aside>
 
-            <div id="chat-container">
                 // In der Funktion showChatScreen()
                 <header>
                     <h3 id="current-room-title">Wähle einen Chat aus, um zu schreiben</h3>
@@ -122,7 +121,6 @@ function showChatScreen() {
                     <input type="text" id="msg-input" placeholder="Nachricht schreiben...">
                     <button id="send-btn">Senden</button>
                 </div>
-            </div>
         </div>
     `;
 
@@ -200,9 +198,6 @@ async function wechsleChat(chatId, partnerName, ichBinAusgetreten = false) {
   if (mqttClient) {
     mqttClient.subscribe(`chat/rooms/${chatId}`);
   }
-  const headerActions = document.getElementById("chat-header-actions");
-  const headerInfoBtn = document.getElementById("header-info-btn");
-  const headerLeaveBtn = document.getElementById("header-leave-btn");
 
   const headerActions = document.getElementById("chat-header-actions");
   const headerInfoBtn = document.getElementById("header-info-btn");
@@ -835,6 +830,7 @@ async function startePrivatenChat(partnerId, partnerName) {
 let temporaereGruppenMitglieder = []; // Speichert ausgewählte User-IDs für die neue Gruppe
 
 // Öffnet ein einfaches Overlay (Modal) im Browser
+// Öffnet ein einfaches Overlay (Modal) im Browser
 function zeigeGruppenModal() {
   // Falls schon ein Modal existiert, entfernen wir es
   const altesModal = document.getElementById("group-modal");
@@ -844,40 +840,36 @@ function zeigeGruppenModal() {
 
   const modal = document.createElement("div");
   modal.id = "group-modal";
-  modal.style = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7); display: flex; align-items: center;
-        justify-content: center; z-index: 9999; color: white;
-    `;
+  modal.className = "modal-overlay"; // <--- NEU: Nutzt jetzt die CSS-Klasse
 
   modal.innerHTML = `
-        <div style="background: #1f1f38; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-            <h3 style="margin-top: 0;">Neue Gruppe erstellen</h3>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Neue Gruppe erstellen</h3>
+                <button id="close-group-modal" class="close-modal-btn">✕</button>
+            </div>
             
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 12px; color: #aaa;">Gruppenname</label>
-                <input type="text" id="new-group-name" placeholder="z.B. Lerngruppe" 
-                       style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #444; background: #0f0c1b; color: white;">
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted);">Gruppenname</label>
+                <input type="text" id="new-group-name" placeholder="z.B. Lerngruppe">
             </div>
 
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 12px; color: #aaa;">Mitglieder hinzufügen (Email/Telefonnummer)</label>
-                <div style="display: flex; margin-top: 5px; gap: 5px;">
-                    <input type="text" id="group-search-input" placeholder="Suchen..." 
-                           style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #0f0c1b; color: white;">
-                    <button id="group-search-btn" style="background: #a855f7; border: none; padding: 0 10px; border-radius: 6px; cursor: pointer; color: white;">🔍</button>
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted);">Mitglieder hinzufügen</label>
+                <div style="display: flex; gap: 5px; margin-top: 5px;">
+                    <input type="text" id="group-search-input" placeholder="Email/Telefonnummer..." style="margin-top:0;">
+                    <button id="group-search-btn" class="btn-primary" style="margin-top:0; width:auto; padding: 0 15px;">🔍</button>
                 </div>
                 <div id="group-search-results" style="margin-top: 5px;"></div>
             </div>
 
-            <div style="margin-bottom: 15px;">
-                <label style="font-size: 12px; color: #aaa;">Ausgewählte Mitglieder:</label>
-                <ul id="selected-members-list" style="list-style: none; padding: 0; margin-top: 5px; display: flex; flex-wrap: wrap; gap: 5px;"></ul>
+            <div>
+                <label style="font-size: 12px; color: var(--text-muted);">Ausgewählte Mitglieder:</label>
+                <ul id="selected-members-list" style="list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px;"></ul>
             </div>
 
-            <div style="display: flex; justify-content: space-end; gap: 10px; margin-top: 20px;">
-                <button id="close-group-modal" style="background: #444; border: none; color: white; padding: 8px 15px; border-radius: 6px; cursor: pointer;">Abbrechen</button>
-                <button id="submit-group-btn" style="background: #a855f7; border: none; color: white; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Erstellen</button>
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                <button id="submit-group-btn" class="btn-primary" style="width: auto; padding: 10px 20px;">Gruppe erstellen</button>
             </div>
         </div>
     `;
@@ -885,15 +877,9 @@ function zeigeGruppenModal() {
   document.body.appendChild(modal);
 
   // Event Listener für das Modal
-  document
-    .getElementById("close-group-modal")
-    .addEventListener("click", () => modal.remove());
-  document
-    .getElementById("group-search-btn")
-    .addEventListener("click", sucheGruppeKontakt);
-  document
-    .getElementById("submit-group-btn")
-    .addEventListener("click", sendeGruppeErstellen);
+  document.getElementById("close-group-modal").addEventListener("click", () => modal.remove());
+  document.getElementById("group-search-btn").addEventListener("click", sucheGruppeKontakt);
+  document.getElementById("submit-group-btn").addEventListener("click", sendeGruppeErstellen);
 }
 
 // Sucht nach Nutzern innerhalb des Gruppen-Modals
@@ -1054,8 +1040,8 @@ async function zeigeGruppenInfo(chatId, groupName) {
 
   const modal = document.createElement("div");
   modal.id = "group-info-modal";
-  modal.style = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);
-                 display:flex;align-items:center;justify-content:center;z-index:9999;color:white;`;
+  modal.className = "modal-overlay";
+
 
   const memberRows = members
     .map((m) => {
