@@ -493,16 +493,10 @@ header h3 {
 /* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
 @media (max-width: 767px) {
 
-  /* Verstecke den Mülleimer in der Kontakt-/Gruppenliste an der Seite! */
+  #room-list .room-actions, 
   #room-list .delete-chat-btn {
     display: none !important;
   }
-  
-  /* Stelle sicher, dass die Optionen oben im offenen Chat sauber nebeneinander stehen */
-  .current-chat-options {
-    gap: 12px !important;
-  }
-
   #app {
     max-width: 100%;
     height: 100vh;
