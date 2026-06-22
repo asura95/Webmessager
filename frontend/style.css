@@ -374,7 +374,7 @@ header h3 {
   color: #c084fc;
 }
 
-/* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
+
 /* --- RESPONSIVE / MOBIL-ANSICHT (UNTER 768px) --- */
 @media (max-width: 767px) {
   #app {
