@@ -442,4 +442,31 @@ header h3 {
     opacity: 1 !important;
     visibility: visible !important;
   }
+  /* --- ICONS NEBENEINANDER AUF DEM HANDY --- */
+
+  /* Der Container, in dem die drei Icons drin sind */
+  .chat-actions, 
+  .room-actions, 
+  .current-chat-options { 
+    display: flex !important;
+    flex-direction: row !important; /* Erzwingt die Nebeneinander-Reihe */
+    align-items: center !important;  /* Zentriert sie vertikal perfekt */
+    gap: 12px !important;           /* Abstand zwischen den einzelnen Icons */
+    justify-content: flex-end;     /* Schiebt die Icons ganz nach rechts */
+    white-space: nowrap !important; /* Verhindert absolut jeden Zeilenumbruch */
+  }
+
+  /* Sorgt dafür, dass die Buttons/Icons selbst nicht gestaucht werden */
+  .chat-actions button, 
+  .chat-actions i,
+  .delete-chat-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 32px;  /* Einheitliche Klickfläche für den Finger */
+    height: 32px;
+    margin: 0 !important; /* Entfernt alte Abstände, die den Umbruch verursacht haben */
+    padding: 0 !important;
+    font-size: 18px !important; /* Macht die Icons gut antippbar */
+  }
 }
