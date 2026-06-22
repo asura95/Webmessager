@@ -24,6 +24,10 @@ app.get('/favico.ico', (req, res) => res.status(204).end());
 const jwtSecret = process.env.JWT_SECRET;
 const client = mqtt.connect(
   process.env.MQTT_BROKER_URL || "mqtt://localhost:1883",
+  {
+    username: process.env.MQTT_USER,
+    password:process.env.MQTT_PASSWORD,
+  },
 );
 
 // ── DB & MQTT Verbindung ─────────────────────────────────────────
@@ -39,6 +43,10 @@ client.on("connect", () => {
     if (err) console.error("❌ MQTT Subscribe Fehler:", err);
     else console.log("📡 Backend lauscht auf 'chat/rooms/+'");
   });
+});
+
+client.on("error", (err) => {
+  console.error("MQTT Verbindungsfehler:", err.message);
 });
 
 // ── Middleware: Token prüfen ─────────────────────────────────────
